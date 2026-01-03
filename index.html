@@ -1,181 +1,500 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>🍹 Cubatas 2026</title>
+import firebase_admin
+from firebase_admin import credentials, db
+from datetime import datetime
+import json
 
-<!-- Firebase -->
-<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
-// MOSTRAR REGISTRO EN LA APP
-db.ref("registro").limitToLast(30).on("value", snap => {
-  const contenedor = document.getElementById("registro");
-  contenedor.innerHTML = "";
+class BebidasFirebase2026:
+    def __init__(self, ruta_credenciales):
+        """
+        Inicializa la conexión con Firebase
+        ruta_credenciales: ruta al archivo JSON de credenciales de Firebase
+        """
+        # Inicializar Firebase
+        if not firebase_admin._apps:
+            cred = credentials.Certificate(ruta_credenciales)
+            firebase_admin.initialize_app(cred, {
+                'databaseURL': 'https://TU-PROYECTO.firebaseio.com'
+            })
+        
+        self.db = db.reference()
+        
+        self.participantes = [
+            "Jonmi", "Marce", "Lucho", "Diego", "Markitos",
+            "Boveda", "Bipo", "Ferrer", "Wichi", "Rabu", "Llorden"
+        ]
+        
+        self.bebidas = {
+            "cubata": {"emoji": "🍹", "puntos": 5},
+            "chupito": {"emoji": "🥃", "puntos": 3},
+            "cerveza": {"emoji": "🍺", "puntos": 1}
+        }
+        
+        self.inicializar_estructura()
+    
+    def inicializar_estructura(self):
+        """Crea la estructura inicial en Firebase si no existe"""
+        ano_actual = datetime.now().year
+        
+        # Inicializar contador de salidas si no existe
+        if not self.db.child(f'salidas/{ano_actual}').get():
+            self.db.child(f'salidas/{ano_actual}').set({
+                'total': 0,
+                'historico': {}
+            })
+        
+        # Inicializar datos de participantes
+        for persona in self.participantes:
+            if not self.db.child(f'participantes/{persona}').get():
+                self.db.child(f'participantes/{persona}').set({
+                    'nombre': persona,
+                    'total_historico': {
+                        'cubata': 0,
+                        'chupito': 0,
+                        'cerveza': 0
+                    }
+                })
+    
+    def registrar_salida(self, fecha=None):
+        """Registra una nueva salida"""
+        if fecha is None:
+            fecha = datetime.now()
+        
+        ano = fecha.year
+        mes = fecha.month
+        dia = fecha.strftime("%Y-%m-%d")
+        
+        # Incrementar contador total
+        salidas_ref = self.db.child(f'salidas/{ano}')
+        total_actual = salidas_ref.child('total').get() or 0
+        salidas_ref.child('total').set(total_actual + 1)
+        
+        # Registrar en histórico
+        salidas_ref.child(f'historico/{dia}').set({
+            'fecha': fecha.strftime("%Y-%m-%d %H:%M:%S"),
+            'numero': total_actual + 1
+        })
+        
+        print(f"🎉 ¡Salida #{total_actual + 1} registrada! ({fecha.strftime('%d/%m/%Y')})")
+        return total_actual + 1
+    
+    def agregar_bebida(self, persona, tipo_bebida, cantidad=1, fecha=None):
+        """Registra bebidas con fecha"""
+        if fecha is None:
+            fecha = datetime.now()
+        
+        if persona not in self.participantes or tipo_bebida not in self.bebidas:
+            print("❌ Persona o bebida no válida")
+            return False
+        
+        ano = fecha.year
+        mes = f"{fecha.year}-{fecha.month:02d}"
+        timestamp = fecha.strftime("%Y-%m-%d %H:%M:%S")
+        
+        # Estructura: bebidas/AÑO/MES/PERSONA/TIPO_BEBIDA
+        ruta_mes = f'bebidas/{ano}/{mes}/{persona}'
+        
+        # Obtener cantidad actual del mes
+        cantidad_actual = self.db.child(f'{ruta_mes}/{tipo_bebida}').get() or 0
+        nueva_cantidad = cantidad_actual + cantidad
+        
+        # Actualizar cantidad del mes
+        self.db.child(f'{ruta_mes}/{tipo_bebida}').set(nueva_cantidad)
+        
+        # Actualizar total histórico
+        ruta_historico = f'participantes/{persona}/total_historico/{tipo_bebida}'
+        total_historico = self.db.child(ruta_historico).get() or 0
+        self.db.child(ruta_historico).set(total_historico + cantidad)
+        
+        # Registrar en histórico detallado
+        self.db.child(f'historico_detallado/{ano}/{mes}/{persona}').push({
+            'tipo': tipo_bebida,
+            'cantidad': cantidad,
+            'timestamp': timestamp,
+            'puntos': cantidad * self.bebidas[tipo_bebida]['puntos']
+        })
+        
+        emoji = self.bebidas[tipo_bebida]["emoji"]
+        puntos = self.bebidas[tipo_bebida]["puntos"] * cantidad
+        print(f"✅ +{cantidad} {emoji} para {persona} (+{puntos} pts) - {mes}")
+        
+        return True
+    
+    def quitar_bebida(self, persona, tipo_bebida, cantidad=1, fecha=None):
+        """Quita bebidas (corrección de errores)"""
+        if fecha is None:
+            fecha = datetime.now()
+        
+        if persona not in self.participantes or tipo_bebida not in self.bebidas:
+            print("❌ Persona o bebida no válida")
+            return False
+        
+        ano = fecha.year
+        mes = f"{fecha.year}-{fecha.month:02d}"
+        ruta_mes = f'bebidas/{ano}/{mes}/{persona}'
+        
+        # Verificar cantidad actual
+        cantidad_actual = self.db.child(f'{ruta_mes}/{tipo_bebida}').get() or 0
+        
+        if cantidad_actual < cantidad:
+            print(f"❌ {persona} solo tiene {cantidad_actual} {tipo_bebida}(s) en {mes}")
+            return False
+        
+        nueva_cantidad = cantidad_actual - cantidad
+        self.db.child(f'{ruta_mes}/{tipo_bebida}').set(nueva_cantidad)
+        
+        # Actualizar total histórico
+        ruta_historico = f'participantes/{persona}/total_historico/{tipo_bebida}'
+        total_historico = self.db.child(ruta_historico).get() or 0
+        self.db.child(ruta_historico).set(max(0, total_historico - cantidad))
+        
+        emoji = self.bebidas[tipo_bebida]["emoji"]
+        puntos = self.bebidas[tipo_bebida]["puntos"] * cantidad
+        print(f"⚠️ -{cantidad} {emoji} para {persona} (-{puntos} pts) - {mes}")
+        
+        return True
+    
+    def calcular_puntos_mes(self, persona, ano, mes):
+        """Calcula los puntos de una persona en un mes específico"""
+        ruta = f'bebidas/{ano}/{mes}/{persona}'
+        datos = self.db.child(ruta).get() or {}
+        
+        total = 0
+        for tipo_bebida, cantidad in datos.items():
+            if tipo_bebida in self.bebidas:
+                total += cantidad * self.bebidas[tipo_bebida]['puntos']
+        
+        return total
+    
+    def obtener_datos_mes(self, persona, ano, mes):
+        """Obtiene los datos de bebidas de una persona en un mes"""
+        ruta = f'bebidas/{ano}/{mes}/{persona}'
+        datos = self.db.child(ruta).get() or {}
+        
+        return {
+            'cubata': datos.get('cubata', 0),
+            'chupito': datos.get('chupito', 0),
+            'cerveza': datos.get('cerveza', 0)
+        }
+    
+    def ranking_mes(self, ano=None, mes=None):
+        """Muestra el ranking de un mes específico"""
+        if ano is None:
+            ano = datetime.now().year
+        if mes is None:
+            mes = datetime.now().month
+        
+        mes_str = f"{ano}-{mes:02d}"
+        
+        print(f"\n{'='*70}")
+        print(f"🏆 RANKING {self._nombre_mes(mes).upper()} {ano} 🏆".center(70))
+        print(f"{'='*70}")
+        
+        # Calcular puntos de cada persona
+        ranking_data = []
+        for persona in self.participantes:
+            puntos = self.calcular_puntos_mes(persona, ano, mes_str)
+            datos = self.obtener_datos_mes(persona, ano, mes_str)
+            ranking_data.append((persona, puntos, datos))
+        
+        # Ordenar por puntos
+        ranking_data.sort(key=lambda x: x[1], reverse=True)
+        
+        for pos, (persona, puntos, datos) in enumerate(ranking_data, 1):
+            if puntos > 0:
+                medalla = self._obtener_medalla(pos)
+                print(f"{medalla} {pos}. {persona}: {puntos} pts")
+                print(f"    🍹 {datos['cubata']} | 🥃 {datos['chupito']} | 🍺 {datos['cerveza']}")
+        
+        print(f"{'='*70}\n")
+    
+    def ranking_general_ano(self, ano=None):
+        """Ranking general de todo el año"""
+        if ano is None:
+            ano = datetime.now().year
+        
+        print(f"\n{'='*70}")
+        print(f"🏆 RANKING GENERAL {ano} 🏆".center(70))
+        print(f"{'='*70}")
+        
+        ranking_data = []
+        
+        for persona in self.participantes:
+            total_puntos = 0
+            total_bebidas = {'cubata': 0, 'chupito': 0, 'cerveza': 0}
+            
+            # Sumar todos los meses
+            bebidas_ano = self.db.child(f'bebidas/{ano}').get() or {}
+            
+            for mes, datos_mes in bebidas_ano.items():
+                if persona in datos_mes:
+                    for tipo_bebida, cantidad in datos_mes[persona].items():
+                        if tipo_bebida in self.bebidas:
+                            total_bebidas[tipo_bebida] += cantidad
+                            total_puntos += cantidad * self.bebidas[tipo_bebida]['puntos']
+            
+            ranking_data.append((persona, total_puntos, total_bebidas))
+        
+        ranking_data.sort(key=lambda x: x[1], reverse=True)
+        
+        for pos, (persona, puntos, datos) in enumerate(ranking_data, 1):
+            medalla = self._obtener_medalla(pos)
+            print(f"{medalla} {pos}. {persona}: {puntos} pts")
+            print(f"    🍹 {datos['cubata']} | 🥃 {datos['chupito']} | 🍺 {datos['cerveza']}")
+        
+        print(f"{'='*70}\n")
+    
+    def historico_persona(self, persona, ano=None):
+        """Muestra el histórico mensual de una persona"""
+        if ano is None:
+            ano = datetime.now().year
+        
+        print(f"\n{'='*70}")
+        print(f"📊 HISTÓRICO {persona.upper()} - {ano} 📊".center(70))
+        print(f"{'='*70}")
+        
+        bebidas_ano = self.db.child(f'bebidas/{ano}').get() or {}
+        
+        total_anual = {'cubata': 0, 'chupito': 0, 'cerveza': 0, 'puntos': 0}
+        
+        for mes_num in range(1, 13):
+            mes_str = f"{ano}-{mes_num:02d}"
+            
+            if mes_str in bebidas_ano and persona in bebidas_ano[mes_str]:
+                datos = bebidas_ano[mes_str][persona]
+                puntos = sum(datos.get(tipo, 0) * self.bebidas[tipo]['puntos'] 
+                           for tipo in self.bebidas.keys())
+                
+                print(f"\n📅 {self._nombre_mes(mes_num)}:")
+                print(f"   🍹 Cubatas: {datos.get('cubata', 0)}")
+                print(f"   🥃 Chupitos: {datos.get('chupito', 0)}")
+                print(f"   🍺 Cervezas: {datos.get('cerveza', 0)}")
+                print(f"   🎯 Puntos: {puntos}")
+                
+                for tipo in self.bebidas.keys():
+                    total_anual[tipo] += datos.get(tipo, 0)
+                total_anual['puntos'] += puntos
+        
+        print(f"\n{'─'*70}")
+        print(f"📈 TOTAL {ano}:")
+        print(f"   🍹 Total Cubatas: {total_anual['cubata']}")
+        print(f"   🥃 Total Chupitos: {total_anual['chupito']}")
+        print(f"   🍺 Total Cervezas: {total_anual['cerveza']}")
+        print(f"   🎯 TOTAL PUNTOS: {total_anual['puntos']}")
+        print(f"{'='*70}\n")
+    
+    def comparativa_meses(self, ano=None):
+        """Muestra una comparativa de todos los meses"""
+        if ano is None:
+            ano = datetime.now().year
+        
+        print(f"\n{'='*90}")
+        print(f"📊 COMPARATIVA MENSUAL {ano} 📊".center(90))
+        print(f"{'='*90}")
+        
+        bebidas_ano = self.db.child(f'bebidas/{ano}').get() or {}
+        
+        for mes_num in range(1, 13):
+            mes_str = f"{ano}-{mes_num:02d}"
+            
+            if mes_str in bebidas_ano:
+                print(f"\n🗓️  {self._nombre_mes(mes_num).upper()}")
+                print(f"{'─'*90}")
+                
+                # Calcular totales del mes
+                totales = {'cubata': 0, 'chupito': 0, 'cerveza': 0}
+                
+                for persona in self.participantes:
+                    if persona in bebidas_ano[mes_str]:
+                        datos = bebidas_ano[mes_str][persona]
+                        for tipo in self.bebidas.keys():
+                            totales[tipo] += datos.get(tipo, 0)
+                
+                print(f"🍹 Cubatas: {totales['cubata']} | 🥃 Chupitos: {totales['chupito']} | 🍺 Cervezas: {totales['cerveza']}")
+                print(f"🍻 Total bebidas: {sum(totales.values())}")
+        
+        print(f"{'='*90}\n")
+    
+    def contador_salidas(self, ano=None):
+        """Muestra el contador de salidas del año"""
+        if ano is None:
+            ano = datetime.now().year
+        
+        salidas_data = self.db.child(f'salidas/{ano}').get()
+        
+        if not salidas_data:
+            print(f"❌ No hay salidas registradas en {ano}")
+            return
+        
+        total = salidas_data.get('total', 0)
+        historico = salidas_data.get('historico', {})
+        
+        print(f"\n{'='*70}")
+        print(f"🎉 CONTADOR DE SALIDAS {ano} 🎉".center(70))
+        print(f"{'='*70}")
+        print(f"\n🍻 Total de salidas: {total}\n")
+        
+        if historico:
+            print("📅 Histórico de salidas:")
+            for fecha, datos in sorted(historico.items(), reverse=True)[:10]:
+                print(f"   • {datos['fecha']} - Salida #{datos['numero']}")
+        
+        print(f"{'='*70}\n")
+    
+    def _nombre_mes(self, mes):
+        """Convierte número de mes a nombre"""
+        meses = {
+            1: "Enero", 2: "Febrero", 3: "Marzo", 4: "Abril",
+            5: "Mayo", 6: "Junio", 7: "Julio", 8: "Agosto",
+            9: "Septiembre", 10: "Octubre", 11: "Noviembre", 12: "Diciembre"
+        }
+        return meses.get(mes, "")
+    
+    def _obtener_medalla(self, posicion):
+        """Retorna emoji de medalla según posición"""
+        medallas = {1: "🥇", 2: "🥈", 3: "🥉"}
+        return medallas.get(posicion, f"{posicion}.")
 
-  const data = snap.val();
-  if (!data) return;
 
-  const eventos = [];
+# MENÚ INTERACTIVO
+def menu_principal():
+    print("🔥 Inicializando conexión con Firebase...")
+    print("📝 Coloca tu archivo de credenciales en la misma carpeta")
+    
+    ruta_credenciales = input("Ruta al archivo de credenciales (ej: credenciales.json): ").strip()
+    
+    try:
+        sistema = BebidasFirebase2026(ruta_credenciales)
+        print("✅ Conexión exitosa con Firebase!\n")
+    except Exception as e:
+        print(f"❌ Error al conectar con Firebase: {e}")
+        return
+    
+    while True:
+        print("\n" + "🍻"*30)
+        print("🎉 SISTEMA DE BEBIDAS 2026 - FIREBASE 🎉".center(60))
+        print("🍻"*30)
+        print("\n📊 GESTIÓN DE BEBIDAS")
+        print("1. ➕ Añadir bebida")
+        print("2. ➖ Quitar bebida")
+        print("3. 🎉 Registrar salida")
+        
+        print("\n🏆 RANKINGS")
+        print("4. 📅 Ver ranking del mes actual")
+        print("5. 📆 Ver ranking de un mes específico")
+        print("6. 🏅 Ver ranking general del año")
+        print("7. 🍹 Ranking por tipo de bebida (mes actual)")
+        
+        print("\n📊 HISTÓRICOS Y ESTADÍSTICAS")
+        print("8. 👤 Ver histórico de una persona")
+        print("9. 📈 Ver comparativa mensual")
+        print("10. 🎊 Ver contador de salidas")
+        
+        print("\n11. 🚪 Salir")
+        
+        opcion = input("\n👉 Elige una opción: ").strip()
+        
+        if opcion == "1":
+            print("\n📋 PERSONAS:")
+            for i, p in enumerate(sistema.participantes, 1):
+                print(f"{i}. {p}")
+            
+            try:
+                persona_num = int(input("\n¿Quién bebió? (número): "))
+                persona = sistema.participantes[persona_num - 1]
+                
+                print("\n🍹 1. Cubata (5 pts)")
+                print("🥃 2. Chupito (3 pts)")
+                print("🍺 3. Cerveza (1 pt)")
+                
+                bebida_num = input("¿Qué bebió? (número): ").strip()
+                bebidas_map = {"1": "cubata", "2": "chupito", "3": "cerveza"}
+                tipo_bebida = bebidas_map.get(bebida_num)
+                
+                cantidad = int(input("¿Cuántas? (por defecto 1): ") or "1")
+                
+                sistema.agregar_bebida(persona, tipo_bebida, cantidad)
+            except (ValueError, IndexError):
+                print("❌ Opción no válida")
+        
+        elif opcion == "2":
+            print("\n📋 PERSONAS:")
+            for i, p in enumerate(sistema.participantes, 1):
+                print(f"{i}. {p}")
+            
+            try:
+                persona_num = int(input("\n¿A quién corregir? (número): "))
+                persona = sistema.participantes[persona_num - 1]
+                
+                print("\n🍹 1. Cubata")
+                print("🥃 2. Chupito")
+                print("🍺 3. Cerveza")
+                
+                bebida_num = input("¿Qué bebida quitar? (número): ").strip()
+                bebidas_map = {"1": "cubata", "2": "chupito", "3": "cerveza"}
+                tipo_bebida = bebidas_map.get(bebida_num)
+                
+                cantidad = int(input("¿Cuántas quitar? (por defecto 1): ") or "1")
+                
+                sistema.quitar_bebida(persona, tipo_bebida, cantidad)
+            except (ValueError, IndexError):
+                print("❌ Opción no válida")
+        
+        elif opcion == "3":
+            sistema.registrar_salida()
+        
+        elif opcion == "4":
+            sistema.ranking_mes()
+        
+        elif opcion == "5":
+            try:
+                ano = int(input("Año (ej: 2026): ") or datetime.now().year)
+                mes = int(input("Mes (1-12): "))
+                sistema.ranking_mes(ano, mes)
+            except ValueError:
+                print("❌ Año o mes no válido")
+        
+        elif opcion == "6":
+            ano = int(input("Año (por defecto 2026): ") or 2026)
+            sistema.ranking_general_ano(ano)
+        
+        elif opcion == "7":
+            print("\n🍹 1. Ranking de Cubatas")
+            print("🥃 2. Ranking de Chupitos")
+            print("🍺 3. Ranking de Cervezas")
+            
+            tipo_num = input("¿Qué ranking ver? (número): ").strip()
+            tipos_map = {"1": "cubata", "2": "chupito", "3": "cerveza"}
+            
+            # Implementar ranking por tipo...
+            print("(Función a implementar)")
+        
+        elif opcion == "8":
+            print("\n📋 PERSONAS:")
+            for i, p in enumerate(sistema.participantes, 1):
+                print(f"{i}. {p}")
+            
+            try:
+                persona_num = int(input("\n¿De quién ver el histórico? (número): "))
+                persona = sistema.participantes[persona_num - 1]
+                sistema.historico_persona(persona)
+            except (ValueError, IndexError):
+                print("❌ Opción no válida")
+        
+        elif opcion == "9":
+            sistema.comparativa_meses()
+        
+        elif opcion == "10":
+            sistema.contador_salidas()
+        
+        elif opcion == "11":
+            print("\n👋 ¡Hasta luego! 🍻")
+            break
+        
+        else:
+            print("❌ Opción no válida")
 
-  Object.entries(data).forEach(([fecha, items]) => {
-    Object.values(items).forEach(e => {
-      eventos.push({
-        fecha,
-        nombre: e.nombre,
-        puntos: e.puntos
-      });
-    });
-  });
 
-  // Últimos primero
-  eventos.reverse().forEach(e => {
-    const div = document.createElement("div");
-    div.style.marginBottom = "6px";
-    div.innerHTML = `📅 ${e.fecha} — <strong>${e.nombre}</strong> — <strong>+${e.puntos}</strong>`;
-    contenedor.appendChild(div);
-  });
-});
-<style>
-body{
-  font-family: system-ui, sans-serif;
-  background:#0f172a;
-  color:white;
-  margin:0;
-  padding:16px;
-}
-h1,h2{text-align:center}
-.row{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  background:#1e293b;
-  padding:10px;
-  border-radius:12px;
-  margin-bottom:8px;
-}
-.name{font-weight:bold;width:90px}
-button{
-  border:none;
-  border-radius:8px;
-  padding:6px 10px;
-  margin-left:4px;
-  cursor:pointer;
-}
-.pts{margin-left:6px;font-weight:bold}
-</style>
-</head>
+if __name__ == "__main__":
+    menu_principal()
 
-<body>
-
-<h1>🍹 Cubatas 2026</h1>
-<h2>🗓️ Recuento</h2>
-
-<div id="app"></div>
-<h2>📜 Registro</h2>
-<div id="registro"></div>
-
-<script>
-/* ================= FIREBASE ================= */
-const firebaseConfig = {
-  apiKey: "AIzaSyC2O75FYQDljmMeu36yB94KbOmAZdgX4d4",
-  authDomain: "cubatas-2026.firebaseapp.com",
-  databaseURL: "https://cubatas-2026-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "cubatas-2026",
-  storageBucket: "cubatas-2026.firebasestorage.app",
-  messagingSenderId: "754889583450",
-  appId: "1:754889583450:web:aa584f7a906290beffe163",
-  measurementId: "G-WZGVRDT8V1"
-};
-
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
-
-/* ================= PERSONAS ================= */
-const people = [
-  "Jonmi","Llorden","Marce","Lucho","Markitos",
-  "Boveda","Diego","Bipo","Wichi","Ferrer","Rabu"
-];
-
-/* ================= FECHA ================= */
-function fechaHoy(){
-  return new Date().toISOString().slice(0,10); // YYYY-MM-DD
-}
-
-/* ================= PUNTOS ================= */
-function puntosPorBebida(tipo){
-  if(tipo==="cubata") return 5;
-  if(tipo==="cana") return 1;
-  if(tipo==="chupito") return 2;
-  return 0;
-}
-
-function puntosTotales(d){
-  return d.cubata*5 + d.cana*1 + d.chupito*2;
-}
-
-/* ================= REGISTRO ================= */
-function guardarEvento(nombre,tipo){
-  const evento = {
-    fecha: fechaHoy(),
-    nombre: nombre,
-    puntos: puntosPorBebida(tipo)
-  };
-  db.ref("registro/" + fechaHoy()).push(evento);
-}
-
-/* ================= INICIALIZAR ================= */
-people.forEach(name=>{
-  db.ref("users/"+name).once("value",snap=>{
-    if(!snap.exists()){
-      db.ref("users/"+name).set({
-        cubata:0,
-        cana:0,
-        chupito:0
-      });
-    }
-  });
-});
-
-/* ================= SUMAR / RESTAR ================= */
-function add(name,tipo){
-  db.ref(`users/${name}/${tipo}`)
-    .transaction(v => (v||0)+1, () => {
-      guardarEvento(name,tipo);
-    });
-}
-
-function sub(name,tipo){
-  db.ref(`users/${name}/${tipo}`)
-    .transaction(v => v>0 ? v-1 : 0);
-}
-
-/* ================= RENDER ================= */
-db.ref("users").on("value",snap=>{
-  const data = snap.val() || {};
-  const app = document.getElementById("app");
-  app.innerHTML = "";
-
-  Object.entries(data).forEach(([name,d])=>{
-    const row = document.createElement("div");
-    row.className = "row";
-    row.innerHTML = `
-      <div class="name">${name}</div>
-      <div>
-        <button onclick="add('${name}','cubata')">🍹 ${d.cubata}</button>
-        <button onclick="sub('${name}','cubata')">−</button>
-        <button onclick="add('${name}','cana')">🍺 ${d.cana}</button>
-        <button onclick="sub('${name}','cana')">−</button>
-        <button onclick="add('${name}','chupito')">🥃 ${d.chupito}</button>
-        <button onclick="sub('${name}','chupito')">−</button>
-        <span class="pts">${puntosTotales(d)} pts</span>
-      </div>
-    `;
-    app.appendChild(row);
-  });
-});
-</script>
-
-</body>
-</html>
 
