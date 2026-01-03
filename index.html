@@ -430,7 +430,7 @@
                 🎉 Fiestas registradas: <strong id="partyCount">0</strong>
             </div>
             <div class="status-badge status-offline" id="statusBadge">
-                ⚫ Conectando...
+                ⚫ Conectando a Firebase...
             </div>
         </header>
 
@@ -481,12 +481,10 @@
         </div>
     </div>
 
-    <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-database.js"></script>
 
     <script>
-        // Configuración de Firebase
         const firebaseConfig = {
             apiKey: "AIzaSyC2O75FYQDljmMeu36yB94KbOmAZdgX4d4",
             authDomain: "cubatas-2026.firebaseapp.com",
@@ -498,24 +496,16 @@
             measurementId: "G-WZGVRDT8V1"
         };
 
-        // Inicializar Firebase
-        firebase.initializeApp(firebaseConfig );
+        firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
-        const personas = [
-            'Jonmi', 'Marce', 'Lucho', 'Diego', 'Markitos',
-            'Boveda', 'Bipo', 'Ferrer', 'Wichi', 'Rabu', 'Llorden'
-        ];
-
+        const personas = ['Jonmi', 'Marce', 'Lucho', 'Diego', 'Markitos', 'Boveda', 'Bipo', 'Ferrer', 'Wichi', 'Rabu', 'Llorden'];
         const drinks = {
             cubata: { emoji: '🍹', points: 5, label: 'Cubata' },
             chupito: { emoji: '🥃', points: 3, label: 'Chupito' },
             cerveza: { emoji: '🍺', points: 1, label: 'Cerveza' }
         };
-
-        const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 
-                       'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
-
+        const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
         const diasSemana = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
         let data = {};
@@ -523,9 +513,7 @@
         let selectedMonth = new Date().getMonth();
         let isConnected = false;
 
-        // Monitorear conexión a Firebase
-        const connectedRef = db.ref('.info/connected');
-        connectedRef.on('value', (snap) => {
+        db.ref('.info/connected').on('value', (snap) => {
             isConnected = snap.val() === true;
             updateStatusBadge();
             if (isConnected) {
@@ -544,21 +532,15 @@
             }
         }
 
-        // Inicializar datos
         function initData() {
             personas.forEach(persona => {
                 data[persona] = {};
                 for (let month = 0; month < 12; month++) {
-                    data[persona][month] = {
-                        cubata: 0,
-                        chupito: 0,
-                        cerveza: 0
-                    };
+                    data[persona][month] = { cubata: 0, chupito: 0, cerveza: 0 };
                 }
             });
         }
 
-        // Cargar datos de Firebase
         function loadDataFromFirebase() {
             db.ref('contador2026').on('value', (snapshot) => {
                 if (snapshot.exists()) {
@@ -574,18 +556,16 @@
             });
         }
 
-        // Guardar datos en Firebase
         function saveToFirebase() {
             if (isConnected) {
                 db.ref('contador2026').set({
                     datos: data,
                     parties: parties,
                     lastUpdate: new Date().toISOString()
-                }).catch(err => console.error('Error guardando en Firebase:', err));
+                });
             }
         }
 
-        // Añadir bebida
         function addDrink(persona, type) {
             const month = new Date().getMonth();
             if (!data[persona][month]) {
@@ -595,285 +575,14 @@
             saveToFirebase();
         }
 
-        // Restar bebida
         function subtractDrink(persona, type) {
             const month = new Date().getMonth();
             if (!data[persona][month]) {
                 data[persona][month] = { cubata: 0, chupito: 0, cerveza: 0 };
             }
             if (data[persona][month][type] > 0) {
-                data[persona][month][type]--;
-                saveToFirebase();
-            }
-        }
-
-        // Calcular puntos
-        function calcularPuntos(persona, month = null) {
-            if (month === null) {
-                month = new Date().getMonth();
-            }
-            if (!data[persona] || !data[persona][month]) return 0;
-            const d = data[persona][month];
-            return (d.cubata * 5) + (d.chupito * 3) + (d.cerveza * 1);
-        }
-
-        // Calcular puntos totales
-        function calcularPuntosTotales(persona) {
-            let total = 0;
-            for (let month = 0; month < 12; month++) {
-                total += calcularPuntos(persona, month);
-            }
-            return total;
-        }
-
-        // Añadir fiesta
-        function addParty() {
-            const dateInput = document.getElementById('eventDate').value;
-            if (!dateInput) {
-                alert('Por favor selecciona una fecha');
-                return;
-            }
-            parties.push(dateInput);
-            saveToFirebase();
-            document.getElementById('eventDate').value = '';
-        }
-
-        // Actualizar interfaz
-        function updateUI() {
-            updateDateInfo();
-            renderPersonas();
-            updateStats();
-            updateRanking();
-            updateMonthSelector();
-            updateMonthlyRanking();
-            updatePartyCount();
-        }
-
-        // Actualizar fecha
-        function updateDateInfo() {
-            const today = new Date();
-            const dayName = diasSemana[today.getDay()];
-            const day = today.getDate();
-            const monthName = meses[today.getMonth()];
-            const year = today.getFullYear();
-            
-            document.getElementById('dateInfo').textContent = `${dayName}, ${day} de ${monthName} de ${year}`;
-        }
-
-        // Actualizar contador de fiestas
-        function updatePartyCount() {
-            document.getElementById('partyCount').textContent = parties.length;
-        }
-
-        // Renderizar tarjetas
-        function renderPersonas() {
-            const grid = document.getElementById('mainGrid');
-            grid.innerHTML = '';
-            const month = new Date().getMonth();
-
-            personas.forEach(persona => {
-                const card = document.createElement('div');
-                card.className = 'person-card';
-                
-                const cubatas = data[persona][month] ? data[persona][month].cubata : 0;
-                const chupitos = data[persona][month] ? data[persona][month].chupito : 0;
-                const cervezas = data[persona][month] ? data[persona][month].cerveza : 0;
-
-                card.innerHTML = `
-                    <div class="person-name">${persona}</div>
-                    <div class="drinks-section">
-                        <div class="drink-type">
-                            <div class="drink-label">
-                                <span class="drink-emoji">${drinks.cubata.emoji}</span>
-                                <span>${drinks.cubata.label}</span>
-                            </div>
-                            <div style="display: flex; align-items: center; gap: 8px;">
-                                <div class="drink-count">${cubatas}</div>
-                                <div class="button-group">
-                                    <button class="btn-add" onclick="addDrink('${persona}', 'cubata')">+</button>
-                                    <button class="btn-subtract" onclick="subtractDrink('${persona}', 'cubata')">−</button>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="drink-type">
-                            <div class="drink-label">
-                                <span class="drink-emoji">${drinks.chupito.emoji}</span>
-                                <span>${drinks.chupito.label}</span>
-                            </div>
-                            <div style="display: flex; align-items: center; gap: 8px;">
-                                <div class="drink-count">${chupitos}</div>
-                                <div class="button-group">
-                                    <button class="btn-add" onclick="addDrink('${persona}', 'chupito')">+</button>
-                                    <button class="btn-subtract" onclick="subtractDrink('${persona}', 'chupito')">−</button>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="drink-type">
-                            <div class="drink-label">
-                                <span class="drink-emoji">${drinks.cerveza.emoji}</span>
-                                <span>${drinks.cerveza.label}</span>
-                            </div>
-                            <div style="display: flex; align-items: center; gap: 8px;">
-                                <div class="drink-count">${cervezas}</div>
-                                <div class="button-group">
-                                    <button class="btn-add" onclick="addDrink('${persona}', 'cerveza')">+</button>
-                                    <button class="btn-subtract" onclick="subtractDrink('${persona}', 'cerveza')">−</button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="points-display">Puntos este mes: ${calcularPuntos(persona, month)}</div>
-                `;
-                grid.appendChild(card);
-            });
-        }
-
-        // Actualizar estadísticas
-        function updateStats() {
-            let totalCubatas = 0, totalChupitos = 0, totalCervezas = 0, totalPuntos = 0;
-            const month = new Date().getMonth();
-
-            personas.forEach(persona => {
-                if (data[persona][month]) {
-                    totalCubatas += data[persona][month].cubata;
-                    totalChupitos += data[persona][month].chupito;
-                    totalCervezas += data[persona][month].cerveza;
-                }
-                totalPuntos += calcularPuntos(persona, month);
-            });
-
-            document.getElementById('totalCubatas').textContent = totalCubatas;
-            document.getElementById('totalChupitos').textContent = totalChupitos;
-            document.getElementById('totalCervezas').textContent = totalCervezas;
-            document.getElementById('totalPuntos').textContent = totalPuntos;
-        }
-
-        // Actualizar ranking general
-        function updateRanking() {
-            const ranking = personas.map(persona => ({
-                nombre: persona,
-                puntos: calcularPuntosTotales(persona)
-            })).sort((a, b) => b.puntos - a.puntos);
-
-            const rankingDiv = document.getElementById('ranking');
-            rankingDiv.innerHTML = '';
-
-            const medals = ['🥇', '🥈', '🥉'];
-
-            ranking.forEach((item, index) => {
-                const medal = medals[index] || '•';
-                const rankItem = document.createElement('div');
-                rankItem.className = 'ranking-item';
-                rankItem.innerHTML = `
-                    <div class="ranking-position">
-                        <div class="medal">${medal}</div>
-                        <div class="ranking-name">${item.nombre}</div>
-                    </div>
-                    <div class="ranking-points">${item.puntos} pts</div>
-                `;
-                rankingDiv.appendChild(rankItem);
-            });
-        }
-
-        // Actualizar selector de meses
-        function updateMonthSelector() {
-            const selector = document.getElementById('monthSelector');
-            selector.innerHTML = '';
-
-            meses.forEach((mes, index) => {
-                const btn = document.createElement('button');
-                btn.className = 'month-btn';
-                if (index === selectedMonth) {
-                    btn.classList.add('active');
-                }
-                btn.textContent = mes;
-                btn.onclick = () => {
-                    selectedMonth = index;
-                    updateMonthSelector();
-                    updateMonthlyRanking();
-                };
-                selector.appendChild(btn);
-            });
-        }
-
-        // Actualizar ranking mensual
-        function updateMonthlyRanking() {
-            const ranking = personas.map(persona => ({
-                nombre: persona,
-                puntos: calcularPuntos(persona, selectedMonth)
-            })).sort((a, b) => b.puntos - a.puntos);
-
-            const rankingDiv = document.getElementById('monthlyRanking');
-            rankingDiv.innerHTML = '';
-
-            if (ranking.every(item => item.puntos === 0)) {
-                rankingDiv.innerHTML = '<p style="text-align: center; color: #999; padding: 20px;">Sin datos en este mes</p>';
-                return;
-            }
-
-            const medals = ['🥇', '🥈', '🥉'];
-
-            ranking.forEach((item, index) => {
-                const medal = medals[index] || '•';
-                const rankItem = document.createElement('div');
-                rankItem.className = 'ranking-item';
-                rankItem.innerHTML = `
-                    <div class="ranking-position">
-                        <div class="medal">${medal}</div>
-                        <div class="ranking-name">${item.nombre}</div>
-                    </div>
-                    <div class="ranking-points">${item.puntos} pts</div>
-                `;
-                rankingDiv.appendChild(rankItem);
-            });
-        }
-
-        // Reiniciar todo
-        function resetAll() {
-            if (confirm('¿Estás seguro de que quieres reiniciar todos los datos?')) {
-                personas.forEach(persona => {
-                    data[persona] = {};
-                    for (let month = 0; month < 12; month++) {
-                        data[persona][month] = { cubata: 0, chupito: 0, cerveza: 0 };
-                    }
-                });
-                parties = [];
-                saveToFirebase();
-            }
-        }
-
-        // Exportar datos
-        function exportData() {
-            let csv = 'Persona,Enero,Febrero,Marzo,Abril,Mayo,Junio,Julio,Agosto,Septiembre,Octubre,Noviembre,Diciembre,Total\n';
-            
-            personas.forEach(persona => {
-                let row = persona;
-                let total = 0;
-                for (let month = 0; month < 12; month++) {
-                    const puntos = calcularPuntos(persona, month);
-                    row += ',' + puntos;
-                    total += puntos;
-                }
-                row += ',' + total;
-                csv += row + '\n';
-            });
-
-            const blob = new Blob([csv], { type: 'text/csv' });
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'contador-bebidas-2026.csv';
-            a.click();
-        }
-
-        // Inicializar
-        initData();
-        updateUI();
-    </script>
-</body>
-</html>
+              
+(Content truncated due to size limit. Use page ranges or line ranges to read remaining content)
 
 
 
