@@ -41,6 +41,25 @@
             margin-bottom: 15px;
         }
 
+        .status-badge {
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            margin-top: 10px;
+            font-weight: bold;
+        }
+
+        .status-online {
+            background: rgba(76, 175, 80, 0.3);
+            color: #4CAF50;
+        }
+
+        .status-offline {
+            background: rgba(244, 67, 54, 0.3);
+            color: #f44336;
+        }
+
         .date-info {
             font-size: 1em;
             opacity: 0.85;
@@ -410,6 +429,9 @@
             <div class="party-counter">
                 🎉 Fiestas registradas: <strong id="partyCount">0</strong>
             </div>
+            <div class="status-badge status-offline" id="statusBadge">
+                ⚫ Conectando...
+            </div>
         </header>
 
         <div class="date-input-section">
@@ -459,7 +481,27 @@
         </div>
     </div>
 
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-database.js"></script>
+
     <script>
+        // Configuración de Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyC2O75FYQDljmMeu36yB94KbOmAZdgX4d4",
+            authDomain: "cubatas-2026.firebaseapp.com",
+            databaseURL: "https://cubatas-2026-default-rtdb.europe-west1.firebasedatabase.app",
+            projectId: "cubatas-2026",
+            storageBucket: "cubatas-2026.firebasestorage.app",
+            messagingSenderId: "754889583450",
+            appId: "1:754889583450:web:aa584f7a906290beffe163",
+            measurementId: "G-WZGVRDT8V1"
+        };
+
+        // Inicializar Firebase
+        firebase.initializeApp(firebaseConfig );
+        const db = firebase.database();
+
         const personas = [
             'Jonmi', 'Marce', 'Lucho', 'Diego', 'Markitos',
             'Boveda', 'Bipo', 'Ferrer', 'Wichi', 'Rabu', 'Llorden'
@@ -479,12 +521,31 @@
         let data = {};
         let parties = [];
         let selectedMonth = new Date().getMonth();
+        let isConnected = false;
+
+        // Monitorear conexión a Firebase
+        const connectedRef = db.ref('.info/connected');
+        connectedRef.on('value', (snap) => {
+            isConnected = snap.val() === true;
+            updateStatusBadge();
+            if (isConnected) {
+                loadDataFromFirebase();
+            }
+        });
+
+        function updateStatusBadge() {
+            const badge = document.getElementById('statusBadge');
+            if (isConnected) {
+                badge.textContent = '🟢 Sincronizado en tiempo real';
+                badge.className = 'status-badge status-online';
+            } else {
+                badge.textContent = '🔴 Sin conexión';
+                badge.className = 'status-badge status-offline';
+            }
+        }
 
         // Inicializar datos
         function initData() {
-            const saved = localStorage.getItem('contadorBebidas');
-            const savedParties = localStorage.getItem('partiesList');
-            
             personas.forEach(persona => {
                 data[persona] = {};
                 for (let month = 0; month < 12; month++) {
@@ -495,32 +556,33 @@
                     };
                 }
             });
-
-            if (saved) {
-                try {
-                    const savedData = JSON.parse(saved);
-                    data = { ...data, ...savedData };
-                } catch (e) {
-                    console.log('Error al cargar datos guardados');
-                }
-            }
-
-            if (savedParties) {
-                try {
-                    parties = JSON.parse(savedParties);
-                } catch (e) {
-                    console.log('Error al cargar fiestas');
-                }
-            }
-
-            updateUI();
         }
 
-        // Guardar datos
-        function saveData() {
-            localStorage.setItem('contadorBebidas', JSON.stringify(data));
-            localStorage.setItem('partiesList', JSON.stringify(parties));
-            updateUI();
+        // Cargar datos de Firebase
+        function loadDataFromFirebase() {
+            db.ref('contador2026').on('value', (snapshot) => {
+                if (snapshot.exists()) {
+                    const firebaseData = snapshot.val();
+                    if (firebaseData.datos) {
+                        data = firebaseData.datos;
+                    }
+                    if (firebaseData.parties) {
+                        parties = firebaseData.parties;
+                    }
+                    updateUI();
+                }
+            });
+        }
+
+        // Guardar datos en Firebase
+        function saveToFirebase() {
+            if (isConnected) {
+                db.ref('contador2026').set({
+                    datos: data,
+                    parties: parties,
+                    lastUpdate: new Date().toISOString()
+                }).catch(err => console.error('Error guardando en Firebase:', err));
+            }
         }
 
         // Añadir bebida
@@ -530,7 +592,7 @@
                 data[persona][month] = { cubata: 0, chupito: 0, cerveza: 0 };
             }
             data[persona][month][type]++;
-            saveData();
+            saveToFirebase();
         }
 
         // Restar bebida
@@ -541,11 +603,11 @@
             }
             if (data[persona][month][type] > 0) {
                 data[persona][month][type]--;
-                saveData();
+                saveToFirebase();
             }
         }
 
-        // Calcular puntos de una persona en un mes
+        // Calcular puntos
         function calcularPuntos(persona, month = null) {
             if (month === null) {
                 month = new Date().getMonth();
@@ -555,7 +617,7 @@
             return (d.cubata * 5) + (d.chupito * 3) + (d.cerveza * 1);
         }
 
-        // Calcular puntos totales del año
+        // Calcular puntos totales
         function calcularPuntosTotales(persona) {
             let total = 0;
             for (let month = 0; month < 12; month++) {
@@ -572,7 +634,7 @@
                 return;
             }
             parties.push(dateInput);
-            saveData();
+            saveToFirebase();
             document.getElementById('eventDate').value = '';
         }
 
@@ -587,7 +649,7 @@
             updatePartyCount();
         }
 
-        // Actualizar información de fecha
+        // Actualizar fecha
         function updateDateInfo() {
             const today = new Date();
             const dayName = diasSemana[today.getDay()];
@@ -603,7 +665,7 @@
             document.getElementById('partyCount').textContent = parties.length;
         }
 
-        // Renderizar tarjetas de personas
+        // Renderizar tarjetas
         function renderPersonas() {
             const grid = document.getElementById('mainGrid');
             grid.innerHTML = '';
@@ -778,7 +840,7 @@
                     }
                 });
                 parties = [];
-                saveData();
+                saveToFirebase();
             }
         }
 
@@ -806,10 +868,13 @@
             a.click();
         }
 
-        // Inicializar cuando carga la página
-        window.addEventListener('DOMContentLoaded', initData);
+        // Inicializar
+        initData();
+        updateUI();
     </script>
 </body>
 </html>
+
+
 
 
