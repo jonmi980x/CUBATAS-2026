@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>🍹 Cubatas 2026 PRO</title>
+  <title>🍹 Cubatas 2026</title>
 
   <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
@@ -18,8 +18,12 @@
       color: white;
     }
 
-    h1 {
+    h1, h2 {
       text-align: center;
+      margin: 16px 0;
+    }
+
+    .section {
       margin-bottom: 24px;
     }
 
@@ -30,12 +34,12 @@
       background: #1e293b;
       border-radius: 14px;
       padding: 12px;
-      margin-bottom: 10px;
+      margin-bottom: 8px;
     }
 
     .name {
       font-weight: 700;
-      width: 80px;
+      width: 90px;
     }
 
     .actions {
@@ -55,23 +59,50 @@
 
     .pts {
       font-weight: 700;
-      margin-left: 6px;
       min-width: 60px;
       text-align: right;
+    }
+
+    .rank-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 6px 0;
+      border-bottom: 1px solid #334155;
+    }
+
+    .history {
+      font-size: 14px;
+      opacity: 0.9;
     }
   </style>
 </head>
 
 <body>
 
-<h1>🍹 Cubatas 2026 PRO</h1>
+<h1>🍹 Cubatas 2026</h1>
 
-<div id="app"></div>
+<!-- CONTADORES -->
+<div class="section">
+  <h2>➕ Recuento</h2>
+  <div id="app"></div>
+</div>
+
+<!-- CLASIFICACIÓN -->
+<div class="section">
+  <h2>🏆 Clasificación</h2>
+  <div id="ranking"></div>
+</div>
+
+<!-- HISTORIAL -->
+<div class="section">
+  <h2>📅 Historial</h2>
+  <div id="history" class="history"></div>
+</div>
 
 <script>
-/* 🔧 PON AQUÍ TU CONFIGURACIÓN REAL DE FIREBASE */
+/* 🔧 PEGA AQUÍ TU firebaseConfig REAL */
 const firebaseConfig = {
-    apiKey: "AIzaSyC2O75FYQDljmMeu36yB94KbOmAZdgX4d4",
+   apiKey: "AIzaSyC2O75FYQDljmMeu36yB94KbOmAZdgX4d4",
   authDomain: "cubatas-2026.firebaseapp.com",
   databaseURL: "https://cubatas-2026-default-rtdb.europe-west1.firebasedatabase.app",
   projectId: "cubatas-2026",
@@ -91,8 +122,10 @@ const people = [
 ];
 
 const app = document.getElementById("app");
+const rankingDiv = document.getElementById("ranking");
+const historyDiv = document.getElementById("history");
 
-/* 🧱 Inicializar datos si no existen */
+/* Inicializar datos */
 people.forEach(name => {
   db.ref("users/" + name).once("value", snap => {
     if (!snap.exists()) {
@@ -105,38 +138,74 @@ people.forEach(name => {
   });
 });
 
-/* ➕ Sumar bebida */
+/* Sumar bebida */
 function addDrink(name, type) {
+  const date = new Date().toLocaleDateString();
   db.ref("users/" + name + "/" + type)
     .transaction(v => (v || 0) + 1);
+
+  db.ref("history").transaction(h => {
+    h = h || [];
+    h.push(`${date} · ${name} ${emoji(type)}`);
+    return h.slice(-40);
+  });
 }
 
-/* 🔄 Render */
+function emoji(type) {
+  if (type === "cubata") return "🍹";
+  if (type === "cana") return "🍺";
+  if (type === "chupito") return "🥃";
+}
+
+/* Render principal + ranking */
 db.ref("users").on("value", snap => {
-  app.innerHTML = "";
   const data = snap.val() || {};
+  app.innerHTML = "";
+  rankingDiv.innerHTML = "";
 
-  Object.entries(data).forEach(([name, d]) => {
-    const points = d.cubata * 5 + d.cana * 1 + d.chupito * 2;
+  const computed = Object.entries(data).map(([name, d]) => {
+    const pts = d.cubata * 5 + d.cana * 1 + d.chupito * 2;
+    return { name, ...d, pts };
+  });
 
+  /* RECUENTO */
+  computed.forEach(u => {
     const row = document.createElement("div");
     row.className = "row";
-
     row.innerHTML = `
-      <div class="name">${name}</div>
+      <div class="name">${u.name}</div>
       <div class="actions">
-        <button onclick="addDrink('${name}','cubata')">🍹 ${d.cubata}</button>
-        <button onclick="addDrink('${name}','cana')">🍺 ${d.cana}</button>
-        <button onclick="addDrink('${name}','chupito')">🥃 ${d.chupito}</button>
-        <div class="pts">${points} pts</div>
+        <button onclick="addDrink('${u.name}','cubata')">🍹 ${u.cubata}</button>
+        <button onclick="addDrink('${u.name}','cana')">🍺 ${u.cana}</button>
+        <button onclick="addDrink('${u.name}','chupito')">🥃 ${u.chupito}</button>
+        <div class="pts">${u.pts} pts</div>
       </div>
     `;
-
     app.appendChild(row);
+  });
+
+  /* CLASIFICACIÓN */
+  computed
+    .sort((a,b) => b.pts - a.pts)
+    .forEach((u,i) => {
+      const r = document.createElement("div");
+      r.className = "rank-row";
+      const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : "";
+      r.innerHTML = `<span>${medal} ${u.name}</span><strong>${u.pts} pts</strong>`;
+      rankingDiv.appendChild(r);
+    });
+});
+
+/* HISTORIAL */
+db.ref("history").on("value", snap => {
+  historyDiv.innerHTML = "";
+  (snap.val() || []).slice().reverse().forEach(h => {
+    const d = document.createElement("div");
+    d.textContent = h;
+    historyDiv.appendChild(d);
   });
 });
 </script>
 
 </body>
 </html>
-
