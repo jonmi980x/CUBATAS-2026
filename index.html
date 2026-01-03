@@ -1,145 +1,140 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Cubatas 2026 PRO</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>🍹 Cubatas 2026 PRO</title>
 
-<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
 
-<style>
-body {
-  font-family: system-ui, sans-serif;
-  background: #0f172a;
-  color: white;
-  margin: 0;
-  padding: 16px;
-}
-h1 { text-align: center; }
-.grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-  gap: 10px;
-}
-button {
-  background: #22c55e;
-  border: none;
-  border-radius: 14px;
-  padding: 12px;
-  font-weight: 600;
-}
-.card {
-  background: #1e293b;
-  border-radius: 20px;
-  padding: 14px;
-  margin-top: 20px;
-}
-.row {
-  display: flex;
-  justify-content: space-between;
-  margin: 6px 0;
-}
-</style>
+  <style>
+    body {
+      margin: 0;
+      padding: 16px;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      background: linear-gradient(180deg, #0f172a, #020617);
+      color: white;
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+
+    .row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #1e293b;
+      border-radius: 14px;
+      padding: 12px;
+      margin-bottom: 10px;
+    }
+
+    .name {
+      font-weight: 700;
+      width: 80px;
+    }
+
+    .actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .actions button {
+      background: #22c55e;
+      border: none;
+      border-radius: 10px;
+      padding: 6px 10px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    .pts {
+      font-weight: 700;
+      margin-left: 6px;
+      min-width: 60px;
+      text-align: right;
+    }
+  </style>
 </head>
 
 <body>
+
 <h1>🍹 Cubatas 2026 PRO</h1>
 
-<div class="grid" id="buttons"></div>
-
-<div class="card">
-  <h3>🏆 Ranking</h3>
-  <div id="ranking"></div>
-</div>
-
-<div class="card">
-  <h3>📋 Historial</h3>
-  <div id="history"></div>
-</div>
-
-<div class="card">
-  <button onclick="reset()">🔄 Reset mensual</button>
-</div>
+<div id="app"></div>
 
 <script>
+/* 🔧 PON AQUÍ TU CONFIGURACIÓN REAL DE FIREBASE */
 const firebaseConfig = {
-    apiKey: "AIzaSyC2O75FYQDljmMeu36yB94KbOmAZdgX4d4",
-  authDomain: "cubatas-2026.firebaseapp.com",
-  databaseURL: "https://cubatas-2026-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "cubatas-2026",
-  storageBucket: "cubatas-2026.firebasestorage.app",
-  messagingSenderId: "754889583450",
-  appId: "1:754889583450:web:aa584f7a906290beffe163",
-  measurementId: "G-WZGVRDT8V1"
+  apiKey: "TU_APIKEY",
+  authDomain: "TU_PROJECT.firebaseapp.com",
+  databaseURL: "https://TU_PROJECT.firebaseio.com",
+  projectId: "TU_PROJECT",
+  storageBucket: "TU_PROJECT.appspot.com",
+  messagingSenderId: "TU_SENDERID",
+  appId: "TU_APPID"
 };
 
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-const people = ["Jonmi","Llorden","Marce","Lucho","Markitos","Boveda","Diego","Bipo","Wichi","Ferrer","Rabu"];
-const drinks = [
-  {n:"Cubata",p:5},
-  {n:"Chupito",p:2},
-  {n:"Tequila",p:3},
-  {n:"Caña",p:1}
+/* 👥 Personas */
+const people = [
+  "Jonmi","Llorden","Marce","Lucho","Markitos",
+  "Boveda","Diego","Bipo","Wichi","Ferrer","Rabu"
 ];
 
-const buttons = document.getElementById("buttons");
-const ranking = document.getElementById("ranking");
-const history = document.getElementById("history");
+const app = document.getElementById("app");
 
-people.forEach(p=>{
-  db.ref("points/"+p).once("value",s=>{
-    if(s.val()==null) db.ref("points/"+p).set(0);
+/* 🧱 Inicializar datos si no existen */
+people.forEach(name => {
+  db.ref("users/" + name).once("value", snap => {
+    if (!snap.exists()) {
+      db.ref("users/" + name).set({
+        cubata: 0,
+        cana: 0,
+        chupito: 0
+      });
+    }
   });
 });
 
-function add(p,d){
-  const date = new Date().toLocaleDateString();
-  db.ref("points/"+p).transaction(v=>(v||0)+d.p);
-  db.ref("history").transaction(h=>{
-    h=h||[];
-    h.push(`${date}: ${p} + ${d.n} (${d.p}p)`);
-    return h.slice(-20);
-  });
+/* ➕ Sumar bebida */
+function addDrink(name, type) {
+  db.ref("users/" + name + "/" + type)
+    .transaction(v => (v || 0) + 1);
 }
 
-function reset(){
-  if(confirm("¿Reset mensual?")){
-    people.forEach(p=>db.ref("points/"+p).set(0));
-  }
-}
+/* 🔄 Render */
+db.ref("users").on("value", snap => {
+  app.innerHTML = "";
+  const data = snap.val() || {};
 
-people.forEach(p=>{
-  drinks.forEach(d=>{
-    const b=document.createElement("button");
-    b.textContent=`${p} + ${d.n}`;
-    b.onclick=()=>add(p,d);
-    buttons.appendChild(b);
-  });
-});
+  Object.entries(data).forEach(([name, d]) => {
+    const points = d.cubata * 5 + d.cana * 1 + d.chupito * 2;
 
-db.ref("points").on("value",s=>{
-  ranking.innerHTML="";
-  const data=s.val()||{};
-  people.sort((a,b)=>(data[b]||0)-(data[a]||0)).forEach(p=>{
-    const r=document.createElement("div");
-    r.className="row";
-    r.innerHTML=`<span>${p}</span><strong>${data[p]||0}</strong>`;
-    ranking.appendChild(r);
-  });
-});
+    const row = document.createElement("div");
+    row.className = "row";
 
-db.ref("history").on("value",s=>{
-  history.innerHTML="";
-  (s.val()||[]).slice().reverse().forEach(e=>{
-    const d=document.createElement("div");
-    d.textContent=e;
-    history.appendChild(d);
+    row.innerHTML = `
+      <div class="name">${name}</div>
+      <div class="actions">
+        <button onclick="addDrink('${name}','cubata')">🍹 ${d.cubata}</button>
+        <button onclick="addDrink('${name}','cana')">🍺 ${d.cana}</button>
+        <button onclick="addDrink('${name}','chupito')">🥃 ${d.chupito}</button>
+        <div class="pts">${points} pts</div>
+      </div>
+    `;
+
+    app.appendChild(row);
   });
 });
 </script>
+
 </body>
 </html>
-
