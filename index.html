@@ -18,44 +18,23 @@ body{
   padding:16px;
 }
 h1,h2{text-align:center}
-
-.toggle{
-  width:100%;
-  padding:14px;
-  margin-bottom:10px;
-  border:none;
-  border-radius:14px;
-  background:#1e293b;
-  color:white;
-  font-size:16px;
-}
-.toggle.active{
-  background:#22c55e;
-  color:black;
-}
-
 .row{
   display:flex;
   justify-content:space-between;
   align-items:center;
   background:#1e293b;
   padding:10px;
-  border-radius:14px;
+  border-radius:12px;
   margin-bottom:8px;
 }
 .name{font-weight:bold;width:90px}
-.actions button{
+button{
   border:none;
   border-radius:8px;
   padding:4px 8px;
   margin-left:4px;
 }
 .pts{margin-left:6px;font-weight:bold}
-.rank-row{
-  display:flex;
-  justify-content:space-between;
-  margin:6px 0;
-}
 </style>
 </head>
 
@@ -63,24 +42,11 @@ h1,h2{text-align:center}
 
 <h1>🍹 Cubatas 2026</h1>
 
-<button id="btnMensual" class="toggle active" onclick="toggle('mensual')">📅 Mensual</button>
-<button id="btnHistorico" class="toggle active" onclick="toggle('historico')">📚 Histórico</button>
-
-<div id="mensual">
-  <h2>🗓️ Recuento mensual</h2>
-  <div id="mensualApp"></div>
-
-  <h2>🏆 Clasificación mensual</h2>
-  <div id="mensualRanking"></div>
-</div>
-
-<div id="historico">
-  <h2>📚 Clasificación histórica</h2>
-  <div id="historicoRanking"></div>
-</div>
+<h2>🗓️ Recuento mensual</h2>
+<div id="app"></div>
 
 <script>
-/* ================= FIREBASE ================= */
+/* 🔧 FIREBASE (PON EL TUYO) */
 const firebaseConfig = {
     apiKey: "AIzaSyC2O75FYQDljmMeu36yB94KbOmAZdgX4d4",
   authDomain: "cubatas-2026.firebaseapp.com",
@@ -91,104 +57,68 @@ const firebaseConfig = {
   appId: "1:754889583450:web:aa584f7a906290beffe163",
   measurementId: "G-WZGVRDT8V1"
 };
+
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-/* ================= PERSONAS ================= */
+/* 👥 PERSONAS */
 const people = [
   "Jonmi","Llorden","Marce","Lucho","Markitos",
   "Boveda","Diego","Bipo","Wichi","Ferrer","Rabu"
 ];
 
-/* ================= ESTADO ================= */
-let showMensual = true;
-let showHistorico = true;
-
-function toggle(type){
-  if(type==="mensual"){
-    showMensual=!showMensual;
-    document.getElementById("mensual").style.display=showMensual?"block":"none";
-    document.getElementById("btnMensual").classList.toggle("active",showMensual);
-  }
-  if(type==="historico"){
-    showHistorico=!showHistorico;
-    document.getElementById("historico").style.display=showHistorico?"block":"none";
-    document.getElementById("btnHistorico").classList.toggle("active",showHistorico);
-  }
-}
-
-/* ================= INICIALIZAR ================= */
-people.forEach(p=>{
-  db.ref("users/"+p).once("value",s=>{
+/* INICIALIZAR */
+people.forEach(name=>{
+  db.ref("users/"+name).once("value",s=>{
     if(!s.exists()){
-      db.ref("users/"+p).set({
-        mensual:{cubata:0,cana:0,chupito:0},
-        historico:{cubata:0,cana:0,chupito:0}
+      db.ref("users/"+name).set({
+        cubata:0,
+        cana:0,
+        chupito:0
       });
     }
   });
 });
 
-/* ================= LÓGICA ================= */
+/* PUNTOS */
 function points(d){
   return d.cubata*5 + d.cana*1 + d.chupito*2;
 }
+
+/* SUMAR / RESTAR */
 function add(name,type){
-  db.ref(`users/${name}/mensual/${type}`).transaction(v=>(v||0)+1);
+  db.ref(`users/${name}/${type}`).transaction(v=>(v||0)+1);
 }
 function sub(name,type){
-  db.ref(`users/${name}/mensual/${type}`).transaction(v=>v>0?v-1:0);
+  db.ref(`users/${name}/${type}`).transaction(v=>v>0?v-1:0);
 }
 
-/* ================= RENDER ================= */
+/* RENDER */
 db.ref("users").on("value",snap=>{
   const data=snap.val()||{};
-  mensualApp.innerHTML="";
-  mensualRanking.innerHTML="";
-  historicoRanking.innerHTML="";
+  const app=document.getElementById("app");
+  app.innerHTML="";
 
-  const mensualArr=[];
-  const historicoArr=[];
-
-  Object.entries(data).forEach(([name,u])=>{
-    const m=u.mensual;
-    const h=u.historico;
-
-    mensualArr.push({name,pts:points(m)});
-    historicoArr.push({name,pts:points(h)});
-
+  Object.entries(data).forEach(([name,d])=>{
     const row=document.createElement("div");
     row.className="row";
     row.innerHTML=`
       <div class="name">${name}</div>
-      <div class="actions">
-        <button onclick="add('${name}','cubata')">🍹 ${m.cubata}</button>
+      <div>
+        <button onclick="add('${name}','cubata')">🍹 ${d.cubata}</button>
         <button onclick="sub('${name}','cubata')">−</button>
-        <button onclick="add('${name}','cana')">🍺 ${m.cana}</button>
+        <button onclick="add('${name}','cana')">🍺 ${d.cana}</button>
         <button onclick="sub('${name}','cana')">−</button>
-        <button onclick="add('${name}','chupito')">🥃 ${m.chupito}</button>
+        <button onclick="add('${name}','chupito')">🥃 ${d.chupito}</button>
         <button onclick="sub('${name}','chupito')">−</button>
-        <span class="pts">${points(m)} pts</span>
+        <span class="pts">${points(d)} pts</span>
       </div>`;
-    mensualApp.appendChild(row);
-  });
-
-  mensualArr.sort((a,b)=>b.pts-a.pts).forEach((u,i)=>{
-    const d=document.createElement("div");
-    d.className="rank-row";
-    d.innerHTML=`<span>${["🥇","🥈","🥉"][i]||""} ${u.name}</span><strong>${u.pts}</strong>`;
-    mensualRanking.appendChild(d);
-  });
-
-  historicoArr.sort((a,b)=>b.pts-a.pts).forEach((u,i)=>{
-    const d=document.createElement("div");
-    d.className="rank-row";
-    d.innerHTML=`<span>${["🥇","🥈","🥉"][i]||""} ${u.name}</span><strong>${u.pts}</strong>`;
-    historicoRanking.appendChild(d);
+    app.appendChild(row);
   });
 });
 </script>
 
 </body>
 </html>
+
 
