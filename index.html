@@ -8,7 +8,34 @@
 <!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+// MOSTRAR REGISTRO EN LA APP
+db.ref("registro").limitToLast(30).on("value", snap => {
+  const contenedor = document.getElementById("registro");
+  contenedor.innerHTML = "";
 
+  const data = snap.val();
+  if (!data) return;
+
+  const eventos = [];
+
+  Object.entries(data).forEach(([fecha, items]) => {
+    Object.values(items).forEach(e => {
+      eventos.push({
+        fecha,
+        nombre: e.nombre,
+        puntos: e.puntos
+      });
+    });
+  });
+
+  // Últimos primero
+  eventos.reverse().forEach(e => {
+    const div = document.createElement("div");
+    div.style.marginBottom = "6px";
+    div.innerHTML = `📅 ${e.fecha} — <strong>${e.nombre}</strong> — <strong>+${e.puntos}</strong>`;
+    contenedor.appendChild(div);
+  });
+});
 <style>
 body{
   font-family: system-ui, sans-serif;
@@ -45,6 +72,8 @@ button{
 <h2>🗓️ Recuento</h2>
 
 <div id="app"></div>
+<h2>📜 Registro</h2>
+<div id="registro"></div>
 
 <script>
 /* ================= FIREBASE ================= */
@@ -149,3 +178,4 @@ db.ref("users").on("value",snap=>{
 
 </body>
 </html>
+
