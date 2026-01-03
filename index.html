@@ -3,181 +3,141 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Cubatas 2026</title>
-<style>
-body { font-family: system-ui, sans-serif; background: #0f172a; color: white; margin:0; padding:16px;}
-h1 { text-align:center; }
-.grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:12px; }
-button { background:#22c55e; border:none; border-radius:16px; padding:14px; font-size:16px; font-weight:600; cursor:pointer; margin:6px 0; }
-button:active { transform: scale(0.97);}
-.card { background:#1e293b; border-radius:20px; padding:12px; margin-top:20px; }
-.row { display:flex; justify-content:space-between; margin:6px 0; }
-</style>
-</head>
-<body>
-<h1>🍹 Cubatas 2026</h1>
-<div class="grid" id="buttons"></div>
-<div class="card">
-<h3>🏆 Ranking</h3>
-<div id="ranking"></div>
-</div>
-<div class="card">
-<h3>📋 Historial</h3>
-<div id="history"></div>
-</div>
-<div class="card">
-<button id="reset">🔄 Reset mensual</button>
-</div>
+<title>Cubatas 2026 PRO</title>
 
-<script>
-const people = ["Jonmi","Llorden","Marce","Lucho","Markitos","Boveda","Diego","Bipo"];
-const data = JSON.parse(localStorage.getItem('cubatasData')) || {};
-const historyData = JSON.parse(localStorage.getItem('cubatasHistory')) || [];
-people.forEach(p => { if(!data[p]) data[p] = 0; });
-
-function saveData() {
-  localStorage.setItem('cubatasData', JSON.stringify(data));
-  localStorage.setItem('cubatasHistory', JSON.stringify(historyData));
-}
-
-const buttonsDiv = document.getElementById('buttons');
-const rankingDiv = document.getElementById('ranking');
-const historyDiv = document.getElementById('history');
-const resetBtn = document.getElementById('reset');
-
-function renderButtons() {
-  buttonsDiv.innerHTML = '';
-  people.forEach(p => {
-    const btn = document.createElement('button');
-    btn.textContent = ${p} +1;
-    btn.onclick = () => {
-      data[p]++;
-      const now = new Date().toLocaleString();
-      historyData.push(${now}: ${p} +1);
-      saveData();
-      renderRanking();
-      renderHistory();
-    };
-    buttonsDiv.appendChild(btn);
-  });
-}
-
-<!DOCTYPE html>
-<html lang="es">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Cubatas 2026 PRO Online</title>
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 <style>
-body { font-family: system-ui, sans-serif; background:#0f172a; color:white; margin:0; padding:16px;}
-h1 { text-align:center; }
-.grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:12px; margin-bottom:20px;}
-button { background:#22c55e; border:none; border-radius:16px; padding:12px; font-size:14px; font-weight:600; cursor:pointer; margin:2px 0; }
-button:active { transform: scale(0.97);}
-.card { background:#1e293b; border-radius:20px; padding:12px; margin-bottom:20px; }
-.row { display:flex; justify-content:space-between; margin:4px 0; }
-canvas { background:#1e293b; border-radius:12px; margin-top:10px; }
+body {
+  font-family: system-ui, sans-serif;
+  background: #0f172a;
+  color: white;
+  margin: 0;
+  padding: 16px;
+}
+h1 { text-align: center; }
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 10px;
+}
+button {
+  background: #22c55e;
+  border: none;
+  border-radius: 14px;
+  padding: 12px;
+  font-weight: 600;
+}
+.card {
+  background: #1e293b;
+  border-radius: 20px;
+  padding: 14px;
+  margin-top: 20px;
+}
+.row {
+  display: flex;
+  justify-content: space-between;
+  margin: 6px 0;
+}
 </style>
 </head>
+
 <body>
-<h1>🍹 Cubatas 2026 PRO Online</h1>
+<h1>🍹 Cubatas 2026 PRO</h1>
 
 <div class="grid" id="buttons"></div>
 
 <div class="card">
-<h3>🏆 Ranking</h3>
-<div id="ranking"></div>
-<canvas id="chart" height="200"></canvas>
+  <h3>🏆 Ranking</h3>
+  <div id="ranking"></div>
 </div>
 
 <div class="card">
-<h3>📋 Historial</h3>
-<div id="history"></div>
+  <h3>📋 Historial</h3>
+  <div id="history"></div>
 </div>
 
 <div class="card">
-<button id="reset">🔄 Reset mensual</button>
+  <button onclick="reset()">🔄 Reset mensual</button>
 </div>
 
 <script>
-// ---------------------------
-// CONFIGURACIÓN DE FIREBASE
-// ---------------------------
 const firebaseConfig = {
-  apiKey: "AIzaSyC2O75FYQDljmMeu36yB94KbOmAZdgX4d4",
-  authDomain: "cubatas-2026.firebaseapp.com",
-  databaseURL: "https://cubatas-2026-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "cubatas-2026",
-  storageBucket: "cubatas-2026.firebasestorage.app",
-  messagingSenderId: "754889583450",
-  appId: "1:754889583450:web:aa584f7a906290beffe163",
-  measurementId: "G-WZGVRDT8V1"
+  apiKey: "TU_APIKEY",
+  authDomain: "TU_PROJECT.firebaseapp.com",
+  databaseURL: "https://TU_PROJECT.firebaseio.com",
+  projectId: "TU_PROJECT",
+  storageBucket: "TU_PROJECT.appspot.com",
+  messagingSenderId: "TU_SENDERID",
+  appId: "TU_APPID"
 };
 
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-// ---------------------------
-// DATOS DE LA APP
-// ---------------------------
 const people = ["Jonmi","Llorden","Marce","Lucho","Markitos","Boveda","Diego","Bipo","Wichi","Ferrer","Rabu"];
 const drinks = [
-  {name:"Cubata", points:5},
-  {name:"Chupito", points:2},
-  {name:"Tequila", points:3},
-  {name:"Caña", points:1}
+  {n:"Cubata",p:5},
+  {n:"Chupito",p:2},
+  {n:"Tequila",p:3},
+  {n:"Caña",p:1}
 ];
 
-const buttonsDiv = document.getElementById('buttons');
-const rankingDiv = document.getElementById('ranking');
-const historyDiv = document.getElementById('history');
-const resetBtn = document.getElementById('reset');
-const chartCanvas = document.getElementById('chart');
-let chart;
+const buttons = document.getElementById("buttons");
+const ranking = document.getElementById("ranking");
+const history = document.getElementById("history");
 
-// ---------------------------
-// FUNCIONES
-// ---------------------------
-people.forEach(p => {
-  db.ref('points/' + p).once('value', snap => {
-    if(snap.val() === null) db.ref('points/' + p).set(0);
+people.forEach(p=>{
+  db.ref("points/"+p).once("value",s=>{
+    if(s.val()==null) db.ref("points/"+p).set(0);
   });
 });
-db.ref('history').once('value', snap => {
-  if(snap.val() === null) db.ref('history').set([]);
-});
 
-function addPoints(person, drink){
-  const now = new Date().toLocaleDateString();
-  db.ref('points/' + person).transaction(current => (current||0) + drink.points);
-  db.ref('history').transaction(current => {
-    current = current || [];
-    current.push(${now}: ${person} + ${drink.name} (${drink.points}p));
-    if(current.length>50) current = current.slice(-50);
-    return current;
+function add(p,d){
+  const date = new Date().toLocaleDateString();
+  db.ref("points/"+p).transaction(v=>(v||0)+d.p);
+  db.ref("history").transaction(h=>{
+    h=h||[];
+    h.push(`${date}: ${p} + ${d.n} (${d.p}p)`);
+    return h.slice(-20);
   });
 }
 
-function resetPoints(){
-  if(confirm('¿Seguro que quieres resetear este mes?')){
-    people.forEach(p => db.ref('points/' + p).set(0));
-    const now = new Date().toLocaleDateString();
-    db.ref('history').transaction(current => {
-      current = current || [];
-      current.push(--- Reset mensual ${now} ---);
-      if(current.length>50) current = current.slice(-50);
-      return current;
-    });
+function reset(){
+  if(confirm("¿Reset mensual?")){
+    people.forEach(p=>db.ref("points/"+p).set(0));
   }
 }
 
-function renderButtons(){
-  buttonsDiv.innerHTML='';
-  people.forEach(p => {
-    drinks.forEach(d => {
-      const btn = document.createElement('button');
-      btn.textContent = ${p} + ${d.name} (${d.points}p);
-      btn.onclick = () => ad…
+people.forEach(p=>{
+  drinks.forEach(d=>{
+    const b=document.createElement("button");
+    b.textContent=`${p} + ${d.n}`;
+    b.onclick=()=>add(p,d);
+    buttons.appendChild(b);
+  });
+});
+
+db.ref("points").on("value",s=>{
+  ranking.innerHTML="";
+  const data=s.val()||{};
+  people.sort((a,b)=>(data[b]||0)-(data[a]||0)).forEach(p=>{
+    const r=document.createElement("div");
+    r.className="row";
+    r.innerHTML=`<span>${p}</span><strong>${data[p]||0}</strong>`;
+    ranking.appendChild(r);
+  });
+});
+
+db.ref("history").on("value",s=>{
+  history.innerHTML="";
+  (s.val()||[]).slice().reverse().forEach(e=>{
+    const d=document.createElement("div");
+    d.textContent=e;
+    history.appendChild(d);
+  });
+});
+</script>
+</body>
+</html>
