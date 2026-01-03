@@ -31,10 +31,25 @@ h1,h2{text-align:center}
 button{
   border:none;
   border-radius:8px;
-  padding:4px 8px;
+  padding:6px 10px;
   margin-left:4px;
+  cursor:pointer;
 }
 .pts{margin-left:6px;font-weight:bold}
+.toggle{
+  width:100%;
+  padding:12px;
+  margin:16px 0;
+  border-radius:12px;
+  background:#22c55e;
+  color:black;
+  font-size:16px;
+}
+.rank-row{
+  display:flex;
+  justify-content:space-between;
+  margin:6px 0;
+}
 </style>
 </head>
 
@@ -42,13 +57,20 @@ button{
 
 <h1>🍹 Cubatas 2026</h1>
 
-<h2>🗓️ Recuento mensual</h2>
+<h2>🗓️ Mensual</h2>
 <div id="app"></div>
 
+<button class="toggle" onclick="toggleHistorico()">📚 Mostrar histórico</button>
+
+<div id="historico" style="display:none">
+  <h2>📚 Histórico</h2>
+  <div id="historicoRanking"></div>
+</div>
+
 <script>
-/* 🔧 FIREBASE (PON EL TUYO) */
+/* 🔧 FIREBASE (PEGA EL TUYO) */
 const firebaseConfig = {
-    apiKey: "AIzaSyC2O75FYQDljmMeu36yB94KbOmAZdgX4d4",
+   apiKey: "AIzaSyC2O75FYQDljmMeu36yB94KbOmAZdgX4d4",
   authDomain: "cubatas-2026.firebaseapp.com",
   databaseURL: "https://cubatas-2026-default-rtdb.europe-west1.firebasedatabase.app",
   projectId: "cubatas-2026",
@@ -67,7 +89,17 @@ const people = [
   "Boveda","Diego","Bipo","Wichi","Ferrer","Rabu"
 ];
 
-/* INICIALIZAR */
+/* HISTÓRICO TOGGLE */
+let historicoVisible = false;
+function toggleHistorico(){
+  historicoVisible = !historicoVisible;
+  document.getElementById("historico").style.display =
+    historicoVisible ? "block" : "none";
+  document.querySelector(".toggle").innerText =
+    historicoVisible ? "📕 Ocultar histórico" : "📚 Mostrar histórico";
+}
+
+/* INICIALIZAR DATOS */
 people.forEach(name=>{
   db.ref("users/"+name).once("value",s=>{
     if(!s.exists()){
@@ -97,9 +129,16 @@ function sub(name,type){
 db.ref("users").on("value",snap=>{
   const data=snap.val()||{};
   const app=document.getElementById("app");
+  const hist=document.getElementById("historicoRanking");
+
   app.innerHTML="";
+  hist.innerHTML="";
+
+  const ranking=[];
 
   Object.entries(data).forEach(([name,d])=>{
+    ranking.push({name,pts:points(d)});
+
     const row=document.createElement("div");
     row.className="row";
     row.innerHTML=`
@@ -114,6 +153,13 @@ db.ref("users").on("value",snap=>{
         <span class="pts">${points(d)} pts</span>
       </div>`;
     app.appendChild(row);
+  });
+
+  ranking.sort((a,b)=>b.pts-a.pts).forEach((u,i)=>{
+    const r=document.createElement("div");
+    r.className="rank-row";
+    r.innerHTML=`<span>${["🥇","🥈","🥉"][i]||""} ${u.name}</span><strong>${u.pts}</strong>`;
+    hist.appendChild(r);
   });
 });
 </script>
