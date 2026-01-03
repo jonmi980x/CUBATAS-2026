@@ -38,6 +38,30 @@
         .subtitle {
             font-size: 1.1em;
             opacity: 0.9;
+            margin-bottom: 15px;
+        }
+
+        .date-info {
+            font-size: 1em;
+            opacity: 0.85;
+            background: rgba(255,255,255,0.1);
+            padding: 10px 20px;
+            border-radius: 8px;
+            display: inline-block;
+            margin-bottom: 15px;
+        }
+
+        .party-counter {
+            background: rgba(255,255,255,0.2);
+            padding: 15px 25px;
+            border-radius: 10px;
+            margin-top: 15px;
+            font-size: 1.1em;
+            display: inline-block;
+        }
+
+        .party-counter strong {
+            color: #FFD700;
         }
 
         .main-grid {
@@ -194,6 +218,7 @@
             border-radius: 15px;
             padding: 30px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 30px;
         }
 
         .ranking-title {
@@ -215,6 +240,10 @@
 
         .ranking-item:hover {
             background: #f9f9f9;
+        }
+
+        .ranking-item:last-child {
+            border-bottom: none;
         }
 
         .ranking-position {
@@ -240,6 +269,35 @@
             font-size: 1.2em;
             font-weight: bold;
             color: #667eea;
+        }
+
+        .month-selector {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .month-btn {
+            padding: 8px 16px;
+            background: #f0f0f0;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.2s ease;
+            font-size: 0.85em;
+        }
+
+        .month-btn.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-color: #667eea;
+        }
+
+        .month-btn:hover {
+            transform: scale(1.05);
         }
 
         .controls {
@@ -282,6 +340,43 @@
             transform: scale(1.05);
         }
 
+        .date-input-section {
+            text-align: center;
+            margin-bottom: 30px;
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .date-input-section label {
+            font-weight: bold;
+            margin-right: 10px;
+            color: #333;
+        }
+
+        .date-input-section input {
+            padding: 8px 12px;
+            border: 2px solid #667eea;
+            border-radius: 6px;
+            font-size: 1em;
+        }
+
+        .date-input-section button {
+            padding: 8px 16px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            margin-left: 10px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .date-input-section button:hover {
+            background: #764ba2;
+        }
+
         @media (max-width: 768px) {
             h1 {
                 font-size: 1.8em;
@@ -294,6 +389,15 @@
             .stats-grid {
                 grid-template-columns: 1fr;
             }
+
+            .month-selector {
+                justify-content: center;
+            }
+
+            .month-btn {
+                font-size: 0.75em;
+                padding: 6px 10px;
+            }
         }
     </style>
 </head>
@@ -302,12 +406,22 @@
         <header>
             <h1>🍻 Contador de Bebidas 2026</h1>
             <p class="subtitle">Registra y compite con tus colegas</p>
+            <div class="date-info" id="dateInfo">Cargando fecha...</div>
+            <div class="party-counter">
+                🎉 Fiestas registradas: <strong id="partyCount">0</strong>
+            </div>
         </header>
+
+        <div class="date-input-section">
+            <label for="eventDate">📅 Registrar una fiesta:</label>
+            <input type="date" id="eventDate">
+            <button onclick="addParty()">Añadir Fiesta</button>
+        </div>
 
         <div class="main-grid" id="mainGrid"></div>
 
         <div class="stats-section">
-            <div class="stats-title">📊 Estadísticas Generales</div>
+            <div class="stats-title">📊 Estadísticas Generales (Este mes)</div>
             <div class="stats-grid">
                 <div class="stat-card">
                     <div class="stat-label">Total Cubatas</div>
@@ -329,8 +443,14 @@
         </div>
 
         <div class="ranking-section">
-            <div class="ranking-title">🏆 Ranking de Competidores</div>
+            <div class="ranking-title">🏆 Ranking General (Todo el año)</div>
             <div id="ranking"></div>
+        </div>
+
+        <div class="ranking-section">
+            <div class="ranking-title">📅 Ranking Mensual - Selecciona un mes</div>
+            <div class="month-selector" id="monthSelector"></div>
+            <div id="monthlyRanking"></div>
         </div>
 
         <div class="controls">
@@ -351,64 +471,152 @@
             cerveza: { emoji: '🍺', points: 1, label: 'Cerveza' }
         };
 
+        const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 
+                       'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+
+        const diasSemana = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+
         let data = {};
+        let parties = [];
+        let selectedMonth = new Date().getMonth();
 
         // Inicializar datos
         function initData() {
             const saved = localStorage.getItem('contadorBebidas');
-            if (saved) {
-                data = JSON.parse(saved);
-            } else {
-                personas.forEach(persona => {
-                    data[persona] = {
+            const savedParties = localStorage.getItem('partiesList');
+            
+            personas.forEach(persona => {
+                data[persona] = {};
+                for (let month = 0; month < 12; month++) {
+                    data[persona][month] = {
                         cubata: 0,
                         chupito: 0,
                         cerveza: 0
                     };
-                });
+                }
+            });
+
+            if (saved) {
+                try {
+                    const savedData = JSON.parse(saved);
+                    data = { ...data, ...savedData };
+                } catch (e) {
+                    console.log('Error al cargar datos guardados');
+                }
             }
+
+            if (savedParties) {
+                try {
+                    parties = JSON.parse(savedParties);
+                } catch (e) {
+                    console.log('Error al cargar fiestas');
+                }
+            }
+
+            updateUI();
         }
 
         // Guardar datos
         function saveData() {
             localStorage.setItem('contadorBebidas', JSON.stringify(data));
+            localStorage.setItem('partiesList', JSON.stringify(parties));
             updateUI();
         }
 
         // Añadir bebida
         function addDrink(persona, type) {
-            data[persona][type]++;
+            const month = new Date().getMonth();
+            if (!data[persona][month]) {
+                data[persona][month] = { cubata: 0, chupito: 0, cerveza: 0 };
+            }
+            data[persona][month][type]++;
             saveData();
         }
 
         // Restar bebida
         function subtractDrink(persona, type) {
-            if (data[persona][type] > 0) {
-                data[persona][type]--;
+            const month = new Date().getMonth();
+            if (!data[persona][month]) {
+                data[persona][month] = { cubata: 0, chupito: 0, cerveza: 0 };
+            }
+            if (data[persona][month][type] > 0) {
+                data[persona][month][type]--;
                 saveData();
             }
         }
 
-        // Calcular puntos de una persona
-        function calcularPuntos(persona) {
-            return (data[persona].cubata * 5) + (data[persona].chupito * 3) + (data[persona].cerveza * 1);
+        // Calcular puntos de una persona en un mes
+        function calcularPuntos(persona, month = null) {
+            if (month === null) {
+                month = new Date().getMonth();
+            }
+            if (!data[persona] || !data[persona][month]) return 0;
+            const d = data[persona][month];
+            return (d.cubata * 5) + (d.chupito * 3) + (d.cerveza * 1);
+        }
+
+        // Calcular puntos totales del año
+        function calcularPuntosTotales(persona) {
+            let total = 0;
+            for (let month = 0; month < 12; month++) {
+                total += calcularPuntos(persona, month);
+            }
+            return total;
+        }
+
+        // Añadir fiesta
+        function addParty() {
+            const dateInput = document.getElementById('eventDate').value;
+            if (!dateInput) {
+                alert('Por favor selecciona una fecha');
+                return;
+            }
+            parties.push(dateInput);
+            saveData();
+            document.getElementById('eventDate').value = '';
         }
 
         // Actualizar interfaz
         function updateUI() {
+            updateDateInfo();
             renderPersonas();
             updateStats();
             updateRanking();
+            updateMonthSelector();
+            updateMonthlyRanking();
+            updatePartyCount();
+        }
+
+        // Actualizar información de fecha
+        function updateDateInfo() {
+            const today = new Date();
+            const dayName = diasSemana[today.getDay()];
+            const day = today.getDate();
+            const monthName = meses[today.getMonth()];
+            const year = today.getFullYear();
+            
+            document.getElementById('dateInfo').textContent = `${dayName}, ${day} de ${monthName} de ${year}`;
+        }
+
+        // Actualizar contador de fiestas
+        function updatePartyCount() {
+            document.getElementById('partyCount').textContent = parties.length;
         }
 
         // Renderizar tarjetas de personas
         function renderPersonas() {
             const grid = document.getElementById('mainGrid');
             grid.innerHTML = '';
+            const month = new Date().getMonth();
 
             personas.forEach(persona => {
                 const card = document.createElement('div');
                 card.className = 'person-card';
+                
+                const cubatas = data[persona][month] ? data[persona][month].cubata : 0;
+                const chupitos = data[persona][month] ? data[persona][month].chupito : 0;
+                const cervezas = data[persona][month] ? data[persona][month].cerveza : 0;
+
                 card.innerHTML = `
                     <div class="person-name">${persona}</div>
                     <div class="drinks-section">
@@ -418,7 +626,7 @@
                                 <span>${drinks.cubata.label}</span>
                             </div>
                             <div style="display: flex; align-items: center; gap: 8px;">
-                                <div class="drink-count">${data[persona].cubata}</div>
+                                <div class="drink-count">${cubatas}</div>
                                 <div class="button-group">
                                     <button class="btn-add" onclick="addDrink('${persona}', 'cubata')">+</button>
                                     <button class="btn-subtract" onclick="subtractDrink('${persona}', 'cubata')">−</button>
@@ -432,7 +640,7 @@
                                 <span>${drinks.chupito.label}</span>
                             </div>
                             <div style="display: flex; align-items: center; gap: 8px;">
-                                <div class="drink-count">${data[persona].chupito}</div>
+                                <div class="drink-count">${chupitos}</div>
                                 <div class="button-group">
                                     <button class="btn-add" onclick="addDrink('${persona}', 'chupito')">+</button>
                                     <button class="btn-subtract" onclick="subtractDrink('${persona}', 'chupito')">−</button>
@@ -446,7 +654,7 @@
                                 <span>${drinks.cerveza.label}</span>
                             </div>
                             <div style="display: flex; align-items: center; gap: 8px;">
-                                <div class="drink-count">${data[persona].cerveza}</div>
+                                <div class="drink-count">${cervezas}</div>
                                 <div class="button-group">
                                     <button class="btn-add" onclick="addDrink('${persona}', 'cerveza')">+</button>
                                     <button class="btn-subtract" onclick="subtractDrink('${persona}', 'cerveza')">−</button>
@@ -454,7 +662,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="points-display">Puntos: ${calcularPuntos(persona)}</div>
+                    <div class="points-display">Puntos este mes: ${calcularPuntos(persona, month)}</div>
                 `;
                 grid.appendChild(card);
             });
@@ -463,12 +671,15 @@
         // Actualizar estadísticas
         function updateStats() {
             let totalCubatas = 0, totalChupitos = 0, totalCervezas = 0, totalPuntos = 0;
+            const month = new Date().getMonth();
 
             personas.forEach(persona => {
-                totalCubatas += data[persona].cubata;
-                totalChupitos += data[persona].chupito;
-                totalCervezas += data[persona].cerveza;
-                totalPuntos += calcularPuntos(persona);
+                if (data[persona][month]) {
+                    totalCubatas += data[persona][month].cubata;
+                    totalChupitos += data[persona][month].chupito;
+                    totalCervezas += data[persona][month].cerveza;
+                }
+                totalPuntos += calcularPuntos(persona, month);
             });
 
             document.getElementById('totalCubatas').textContent = totalCubatas;
@@ -477,11 +688,11 @@
             document.getElementById('totalPuntos').textContent = totalPuntos;
         }
 
-        // Actualizar ranking
+        // Actualizar ranking general
         function updateRanking() {
             const ranking = personas.map(persona => ({
                 nombre: persona,
-                puntos: calcularPuntos(persona)
+                puntos: calcularPuntosTotales(persona)
             })).sort((a, b) => b.puntos - a.puntos);
 
             const rankingDiv = document.getElementById('ranking');
@@ -504,22 +715,87 @@
             });
         }
 
+        // Actualizar selector de meses
+        function updateMonthSelector() {
+            const selector = document.getElementById('monthSelector');
+            selector.innerHTML = '';
+
+            meses.forEach((mes, index) => {
+                const btn = document.createElement('button');
+                btn.className = 'month-btn';
+                if (index === selectedMonth) {
+                    btn.classList.add('active');
+                }
+                btn.textContent = mes;
+                btn.onclick = () => {
+                    selectedMonth = index;
+                    updateMonthSelector();
+                    updateMonthlyRanking();
+                };
+                selector.appendChild(btn);
+            });
+        }
+
+        // Actualizar ranking mensual
+        function updateMonthlyRanking() {
+            const ranking = personas.map(persona => ({
+                nombre: persona,
+                puntos: calcularPuntos(persona, selectedMonth)
+            })).sort((a, b) => b.puntos - a.puntos);
+
+            const rankingDiv = document.getElementById('monthlyRanking');
+            rankingDiv.innerHTML = '';
+
+            if (ranking.every(item => item.puntos === 0)) {
+                rankingDiv.innerHTML = '<p style="text-align: center; color: #999; padding: 20px;">Sin datos en este mes</p>';
+                return;
+            }
+
+            const medals = ['🥇', '🥈', '🥉'];
+
+            ranking.forEach((item, index) => {
+                const medal = medals[index] || '•';
+                const rankItem = document.createElement('div');
+                rankItem.className = 'ranking-item';
+                rankItem.innerHTML = `
+                    <div class="ranking-position">
+                        <div class="medal">${medal}</div>
+                        <div class="ranking-name">${item.nombre}</div>
+                    </div>
+                    <div class="ranking-points">${item.puntos} pts</div>
+                `;
+                rankingDiv.appendChild(rankItem);
+            });
+        }
+
         // Reiniciar todo
         function resetAll() {
             if (confirm('¿Estás seguro de que quieres reiniciar todos los datos?')) {
                 personas.forEach(persona => {
-                    data[persona] = { cubata: 0, chupito: 0, cerveza: 0 };
+                    data[persona] = {};
+                    for (let month = 0; month < 12; month++) {
+                        data[persona][month] = { cubata: 0, chupito: 0, cerveza: 0 };
+                    }
                 });
+                parties = [];
                 saveData();
             }
         }
 
         // Exportar datos
         function exportData() {
-            let csv = 'Persona,Cubatas,Chupitos,Cervezas,Puntos\n';
+            let csv = 'Persona,Enero,Febrero,Marzo,Abril,Mayo,Junio,Julio,Agosto,Septiembre,Octubre,Noviembre,Diciembre,Total\n';
+            
             personas.forEach(persona => {
-                const puntos = calcularPuntos(persona);
-                csv += `${persona},${data[persona].cubata},${data[persona].chupito},${data[persona].cerveza},${puntos}\n`;
+                let row = persona;
+                let total = 0;
+                for (let month = 0; month < 12; month++) {
+                    const puntos = calcularPuntos(persona, month);
+                    row += ',' + puntos;
+                    total += puntos;
+                }
+                row += ',' + total;
+                csv += row + '\n';
             });
 
             const blob = new Blob([csv], { type: 'text/csv' });
@@ -530,9 +806,10 @@
             a.click();
         }
 
-        // Inicializar
-        initData();
-        updateUI();
+        // Inicializar cuando carga la página
+        window.addEventListener('DOMContentLoaded', initData);
     </script>
 </body>
 </html>
+
+
