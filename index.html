@@ -1,108 +1,114 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>🍹 Cubatas 2026</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🍹 Cubatas 2026</title>
 
-  <!-- Firebase -->
-  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
 
-  <style>
-    body {
-      margin: 0;
-      padding: 16px;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-      background: linear-gradient(180deg, #0f172a, #020617);
-      color: white;
-    }
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-    h1, h2 {
-      text-align: center;
-      margin: 16px 0;
-    }
+<style>
+body {
+  font-family: system-ui, sans-serif;
+  background:#0f172a;
+  color:white;
+  margin:0;
+  padding:16px;
+}
+h1, h2 { text-align:center; }
 
-    .section {
-      margin-bottom: 24px;
-    }
+.toggles {
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+  margin-bottom:20px;
+}
+.toggle {
+  padding:12px;
+  border:none;
+  border-radius:12px;
+  background:#1e293b;
+  color:white;
+  cursor:pointer;
+  font-size:16px;
+}
+.toggle.active {
+  background:#22c55e;
+  color:black;
+}
 
-    .row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      background: #1e293b;
-      border-radius: 14px;
-      padding: 12px;
-      margin-bottom: 8px;
-    }
+.section { margin-bottom:32px; }
 
-    .name {
-      font-weight: 700;
-      width: 90px;
-    }
-
-    .actions {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .actions button {
-      background: #22c55e;
-      border: none;
-      border-radius: 10px;
-      padding: 6px 10px;
-      font-size: 16px;
-      cursor: pointer;
-    }
-
-    .pts {
-      font-weight: 700;
-      min-width: 60px;
-      text-align: right;
-    }
-
-    .rank-row {
-      display: flex;
-      justify-content: space-between;
-      padding: 6px 0;
-      border-bottom: 1px solid #334155;
-    }
-
-    .history {
-      font-size: 14px;
-      opacity: 0.9;
-    }
-  </style>
+.row {
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  background:#1e293b;
+  padding:10px;
+  border-radius:12px;
+  margin-bottom:8px;
+}
+.actions button {
+  margin-left:4px;
+  border:none;
+  border-radius:8px;
+  padding:4px 8px;
+  cursor:pointer;
+}
+.pts {
+  font-weight:bold;
+  margin-left:6px;
+}
+.rank-row {
+  display:flex;
+  justify-content:space-between;
+  margin:6px 0;
+}
+canvas { margin-top:16px; }
+</style>
 </head>
 
 <body>
 
 <h1>🍹 Cubatas 2026</h1>
 
-<!-- CONTADORES -->
-<div class="section">
-  <h2>➕ Recuento</h2>
-  <div id="app"></div>
+<div class="toggles">
+  <button id="toggleMensual" class="toggle active" onclick="toggleSection('mensual')">
+    🗓️ Mensual
+  </button>
+  <button id="toggleHistorico" class="toggle active" onclick="toggleSection('historico')">
+    📚 Histórico
+  </button>
 </div>
 
-<!-- CLASIFICACIÓN -->
-<div class="section">
-  <h2>🏆 Clasificación</h2>
-  <div id="ranking"></div>
+<!-- MENSUAL -->
+<div id="mensualSection" class="section">
+  <h2>🗓️ Recuento mensual</h2>
+  <div id="mensualApp"></div>
+
+  <h2>🏆 Clasificación mensual</h2>
+  <div id="mensualRanking"></div>
+
+  <canvas id="chartMensual"></canvas>
 </div>
 
-<!-- HISTORIAL -->
-<div class="section">
-  <h2>📅 Historial</h2>
-  <div id="history" class="history"></div>
+<!-- HISTÓRICO -->
+<div id="historicoSection" class="section">
+  <h2>📚 Clasificación histórica</h2>
+  <div id="historicoRanking"></div>
+
+  <canvas id="chartHistorico"></canvas>
 </div>
 
 <script>
-/* 🔧 PEGA AQUÍ TU firebaseConfig REAL */
+/* 🔧 TU FIREBASE */
 const firebaseConfig = {
-   apiKey: "AIzaSyC2O75FYQDljmMeu36yB94KbOmAZdgX4d4",
+  apiKey: "AIzaSyC2O75FYQDljmMeu36yB94KbOmAZdgX4d4",
   authDomain: "cubatas-2026.firebaseapp.com",
   databaseURL: "https://cubatas-2026-default-rtdb.europe-west1.firebasedatabase.app",
   projectId: "cubatas-2026",
@@ -115,95 +121,127 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-/* 👥 Personas */
+/* PERSONAS */
 const people = [
   "Jonmi","Llorden","Marce","Lucho","Markitos",
   "Boveda","Diego","Bipo","Wichi","Ferrer","Rabu"
 ];
 
-const app = document.getElementById("app");
-const rankingDiv = document.getElementById("ranking");
-const historyDiv = document.getElementById("history");
+/* ESTADO TOGGLES */
+const state = { mensual:true, historico:true };
 
-/* Inicializar datos */
-people.forEach(name => {
-  db.ref("users/" + name).once("value", snap => {
-    if (!snap.exists()) {
-      db.ref("users/" + name).set({
-        cubata: 0,
-        cana: 0,
-        chupito: 0
+function toggleSection(type){
+  state[type] = !state[type];
+  document.getElementById(type+"Section").style.display =
+    state[type] ? "block" : "none";
+  document.getElementById("toggle"+cap(type))
+    .classList.toggle("active", state[type]);
+}
+
+function cap(s){ return s.charAt(0).toUpperCase()+s.slice(1); }
+
+/* INICIALIZAR */
+people.forEach(p=>{
+  db.ref("users/"+p).once("value",s=>{
+    if(!s.exists()){
+      db.ref("users/"+p).set({
+        mensual:{cubata:0,cana:0,chupito:0},
+        historico:{cubata:0,cana:0,chupito:0}
       });
     }
   });
 });
 
-/* Sumar bebida */
-function addDrink(name, type) {
-  const date = new Date().toLocaleDateString();
-  db.ref("users/" + name + "/" + type)
-    .transaction(v => (v || 0) + 1);
-
-  db.ref("history").transaction(h => {
-    h = h || [];
-    h.push(`${date} · ${name} ${emoji(type)}`);
-    return h.slice(-40);
-  });
+/* PUNTOS */
+function points(d){
+  return d.cubata*5 + d.cana*1 + d.chupito*2;
 }
 
-function emoji(type) {
-  if (type === "cubata") return "🍹";
-  if (type === "cana") return "🍺";
-  if (type === "chupito") return "🥃";
+/* SUMAR / RESTAR */
+function add(name,type){
+  db.ref(`users/${name}/mensual/${type}`)
+    .transaction(v=>(v||0)+1);
+}
+function remove(name,type){
+  db.ref(`users/${name}/mensual/${type}`)
+    .transaction(v=>v>0?v-1:0);
 }
 
-/* Render principal + ranking */
-db.ref("users").on("value", snap => {
-  const data = snap.val() || {};
-  app.innerHTML = "";
-  rankingDiv.innerHTML = "";
+/* GRÁFICOS */
+let chartMensual=null, chartHistorico=null;
 
-  const computed = Object.entries(data).map(([name, d]) => {
-    const pts = d.cubata * 5 + d.cana * 1 + d.chupito * 2;
-    return { name, ...d, pts };
+function renderChart(canvasId, data){
+  const ctx=document.getElementById(canvasId);
+  if(!ctx) return;
+
+  const labels=data.map(d=>d.name);
+  const pts=data.map(d=>d.pts);
+
+  if(canvasId==="chartMensual" && chartMensual) chartMensual.destroy();
+  if(canvasId==="chartHistorico" && chartHistorico) chartHistorico.destroy();
+
+  const chart=new Chart(ctx,{
+    type:"bar",
+    data:{labels,datasets:[{data:pts}]},
+    options:{
+      responsive:true,
+      plugins:{legend:{display:false}},
+      scales:{y:{beginAtZero:true}}
+    }
   });
 
-  /* RECUENTO */
-  computed.forEach(u => {
-    const row = document.createElement("div");
-    row.className = "row";
-    row.innerHTML = `
-      <div class="name">${u.name}</div>
+  if(canvasId==="chartMensual") chartMensual=chart;
+  if(canvasId==="chartHistorico") chartHistorico=chart;
+}
+
+/* RENDER GENERAL */
+db.ref("users").on("value",snap=>{
+  const data=snap.val()||{};
+
+  mensualApp.innerHTML="";
+  mensualRanking.innerHTML="";
+  historicoRanking.innerHTML="";
+
+  const mensualArr=[];
+  const historicoArr=[];
+
+  Object.entries(data).forEach(([name,u])=>{
+    const m=u.mensual, h=u.historico;
+    mensualArr.push({name,pts:points(m),...m});
+    historicoArr.push({name,pts:points(h),...h});
+
+    const row=document.createElement("div");
+    row.className="row";
+    row.innerHTML=`
+      <strong>${name}</strong>
       <div class="actions">
-        <button onclick="addDrink('${u.name}','cubata')">🍹 ${u.cubata}</button>
-        <button onclick="addDrink('${u.name}','cana')">🍺 ${u.cana}</button>
-        <button onclick="addDrink('${u.name}','chupito')">🥃 ${u.chupito}</button>
-        <div class="pts">${u.pts} pts</div>
-      </div>
-    `;
-    app.appendChild(row);
+        <button onclick="add('${name}','cubata')">🍹 ${m.cubata}</button>
+        <button onclick="remove('${name}','cubata')">−</button>
+        <button onclick="add('${name}','cana')">🍺 ${m.cana}</button>
+        <button onclick="remove('${name}','cana')">−</button>
+        <button onclick="add('${name}','chupito')">🥃 ${m.chupito}</button>
+        <button onclick="remove('${name}','chupito')">−</button>
+        <span class="pts">${points(m)} pts</span>
+      </div>`;
+    mensualApp.appendChild(row);
   });
 
-  /* CLASIFICACIÓN */
-  computed
-    .sort((a,b) => b.pts - a.pts)
-    .forEach((u,i) => {
-      const r = document.createElement("div");
-      r.className = "rank-row";
-      const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : "";
-      r.innerHTML = `<span>${medal} ${u.name}</span><strong>${u.pts} pts</strong>`;
-      rankingDiv.appendChild(r);
-    });
-});
-
-/* HISTORIAL */
-db.ref("history").on("value", snap => {
-  historyDiv.innerHTML = "";
-  (snap.val() || []).slice().reverse().forEach(h => {
-    const d = document.createElement("div");
-    d.textContent = h;
-    historyDiv.appendChild(d);
+  mensualArr.sort((a,b)=>b.pts-a.pts).forEach((u,i)=>{
+    const d=document.createElement("div");
+    d.className="rank-row";
+    d.innerHTML=`<span>${i<3?"🥇🥈🥉"[i*2]:""} ${u.name}</span><strong>${u.pts}</strong>`;
+    mensualRanking.appendChild(d);
   });
+
+  historicoArr.sort((a,b)=>b.pts-a.pts).forEach((u,i)=>{
+    const d=document.createElement("div");
+    d.className="rank-row";
+    d.innerHTML=`<span>${i<3?"🥇🥈🥉"[i*2]:""} ${u.name}</span><strong>${u.pts}</strong>`;
+    historicoRanking.appendChild(d);
+  });
+
+  if(state.mensual) renderChart("chartMensual", mensualArr);
+  if(state.historico) renderChart("chartHistorico", historicoArr);
 });
 </script>
 
