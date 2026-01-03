@@ -1,500 +1,538 @@
-import firebase_admin
-from firebase_admin import credentials, db
-from datetime import datetime
-import json
-
-class BebidasFirebase2026:
-    def __init__(self, ruta_credenciales):
-        """
-        Inicializa la conexión con Firebase
-        ruta_credenciales: ruta al archivo JSON de credenciales de Firebase
-        """
-        # Inicializar Firebase
-        if not firebase_admin._apps:
-            cred = credentials.Certificate(ruta_credenciales)
-            firebase_admin.initialize_app(cred, {
-                'databaseURL': 'https://TU-PROYECTO.firebaseio.com'
-            })
-        
-        self.db = db.reference()
-        
-        self.participantes = [
-            "Jonmi", "Marce", "Lucho", "Diego", "Markitos",
-            "Boveda", "Bipo", "Ferrer", "Wichi", "Rabu", "Llorden"
-        ]
-        
-        self.bebidas = {
-            "cubata": {"emoji": "🍹", "puntos": 5},
-            "chupito": {"emoji": "🥃", "puntos": 3},
-            "cerveza": {"emoji": "🍺", "puntos": 1}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contador de Bebidas 2026</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
-        
-        self.inicializar_estructura()
-    
-    def inicializar_estructura(self):
-        """Crea la estructura inicial en Firebase si no existe"""
-        ano_actual = datetime.now().year
-        
-        # Inicializar contador de salidas si no existe
-        if not self.db.child(f'salidas/{ano_actual}').get():
-            self.db.child(f'salidas/{ano_actual}').set({
-                'total': 0,
-                'historico': {}
-            })
-        
-        # Inicializar datos de participantes
-        for persona in self.participantes:
-            if not self.db.child(f'participantes/{persona}').get():
-                self.db.child(f'participantes/{persona}').set({
-                    'nombre': persona,
-                    'total_historico': {
-                        'cubata': 0,
-                        'chupito': 0,
-                        'cerveza': 0
-                    }
-                })
-    
-    def registrar_salida(self, fecha=None):
-        """Registra una nueva salida"""
-        if fecha is None:
-            fecha = datetime.now()
-        
-        ano = fecha.year
-        mes = fecha.month
-        dia = fecha.strftime("%Y-%m-%d")
-        
-        # Incrementar contador total
-        salidas_ref = self.db.child(f'salidas/{ano}')
-        total_actual = salidas_ref.child('total').get() or 0
-        salidas_ref.child('total').set(total_actual + 1)
-        
-        # Registrar en histórico
-        salidas_ref.child(f'historico/{dia}').set({
-            'fecha': fecha.strftime("%Y-%m-%d %H:%M:%S"),
-            'numero': total_actual + 1
-        })
-        
-        print(f"🎉 ¡Salida #{total_actual + 1} registrada! ({fecha.strftime('%d/%m/%Y')})")
-        return total_actual + 1
-    
-    def agregar_bebida(self, persona, tipo_bebida, cantidad=1, fecha=None):
-        """Registra bebidas con fecha"""
-        if fecha is None:
-            fecha = datetime.now()
-        
-        if persona not in self.participantes or tipo_bebida not in self.bebidas:
-            print("❌ Persona o bebida no válida")
-            return False
-        
-        ano = fecha.year
-        mes = f"{fecha.year}-{fecha.month:02d}"
-        timestamp = fecha.strftime("%Y-%m-%d %H:%M:%S")
-        
-        # Estructura: bebidas/AÑO/MES/PERSONA/TIPO_BEBIDA
-        ruta_mes = f'bebidas/{ano}/{mes}/{persona}'
-        
-        # Obtener cantidad actual del mes
-        cantidad_actual = self.db.child(f'{ruta_mes}/{tipo_bebida}').get() or 0
-        nueva_cantidad = cantidad_actual + cantidad
-        
-        # Actualizar cantidad del mes
-        self.db.child(f'{ruta_mes}/{tipo_bebida}').set(nueva_cantidad)
-        
-        # Actualizar total histórico
-        ruta_historico = f'participantes/{persona}/total_historico/{tipo_bebida}'
-        total_historico = self.db.child(ruta_historico).get() or 0
-        self.db.child(ruta_historico).set(total_historico + cantidad)
-        
-        # Registrar en histórico detallado
-        self.db.child(f'historico_detallado/{ano}/{mes}/{persona}').push({
-            'tipo': tipo_bebida,
-            'cantidad': cantidad,
-            'timestamp': timestamp,
-            'puntos': cantidad * self.bebidas[tipo_bebida]['puntos']
-        })
-        
-        emoji = self.bebidas[tipo_bebida]["emoji"]
-        puntos = self.bebidas[tipo_bebida]["puntos"] * cantidad
-        print(f"✅ +{cantidad} {emoji} para {persona} (+{puntos} pts) - {mes}")
-        
-        return True
-    
-    def quitar_bebida(self, persona, tipo_bebida, cantidad=1, fecha=None):
-        """Quita bebidas (corrección de errores)"""
-        if fecha is None:
-            fecha = datetime.now()
-        
-        if persona not in self.participantes or tipo_bebida not in self.bebidas:
-            print("❌ Persona o bebida no válida")
-            return False
-        
-        ano = fecha.year
-        mes = f"{fecha.year}-{fecha.month:02d}"
-        ruta_mes = f'bebidas/{ano}/{mes}/{persona}'
-        
-        # Verificar cantidad actual
-        cantidad_actual = self.db.child(f'{ruta_mes}/{tipo_bebida}').get() or 0
-        
-        if cantidad_actual < cantidad:
-            print(f"❌ {persona} solo tiene {cantidad_actual} {tipo_bebida}(s) en {mes}")
-            return False
-        
-        nueva_cantidad = cantidad_actual - cantidad
-        self.db.child(f'{ruta_mes}/{tipo_bebida}').set(nueva_cantidad)
-        
-        # Actualizar total histórico
-        ruta_historico = f'participantes/{persona}/total_historico/{tipo_bebida}'
-        total_historico = self.db.child(ruta_historico).get() or 0
-        self.db.child(ruta_historico).set(max(0, total_historico - cantidad))
-        
-        emoji = self.bebidas[tipo_bebida]["emoji"]
-        puntos = self.bebidas[tipo_bebida]["puntos"] * cantidad
-        print(f"⚠️ -{cantidad} {emoji} para {persona} (-{puntos} pts) - {mes}")
-        
-        return True
-    
-    def calcular_puntos_mes(self, persona, ano, mes):
-        """Calcula los puntos de una persona en un mes específico"""
-        ruta = f'bebidas/{ano}/{mes}/{persona}'
-        datos = self.db.child(ruta).get() or {}
-        
-        total = 0
-        for tipo_bebida, cantidad in datos.items():
-            if tipo_bebida in self.bebidas:
-                total += cantidad * self.bebidas[tipo_bebida]['puntos']
-        
-        return total
-    
-    def obtener_datos_mes(self, persona, ano, mes):
-        """Obtiene los datos de bebidas de una persona en un mes"""
-        ruta = f'bebidas/{ano}/{mes}/{persona}'
-        datos = self.db.child(ruta).get() or {}
-        
-        return {
-            'cubata': datos.get('cubata', 0),
-            'chupito': datos.get('chupito', 0),
-            'cerveza': datos.get('cerveza', 0)
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
         }
-    
-    def ranking_mes(self, ano=None, mes=None):
-        """Muestra el ranking de un mes específico"""
-        if ano is None:
-            ano = datetime.now().year
-        if mes is None:
-            mes = datetime.now().month
-        
-        mes_str = f"{ano}-{mes:02d}"
-        
-        print(f"\n{'='*70}")
-        print(f"🏆 RANKING {self._nombre_mes(mes).upper()} {ano} 🏆".center(70))
-        print(f"{'='*70}")
-        
-        # Calcular puntos de cada persona
-        ranking_data = []
-        for persona in self.participantes:
-            puntos = self.calcular_puntos_mes(persona, ano, mes_str)
-            datos = self.obtener_datos_mes(persona, ano, mes_str)
-            ranking_data.append((persona, puntos, datos))
-        
-        # Ordenar por puntos
-        ranking_data.sort(key=lambda x: x[1], reverse=True)
-        
-        for pos, (persona, puntos, datos) in enumerate(ranking_data, 1):
-            if puntos > 0:
-                medalla = self._obtener_medalla(pos)
-                print(f"{medalla} {pos}. {persona}: {puntos} pts")
-                print(f"    🍹 {datos['cubata']} | 🥃 {datos['chupito']} | 🍺 {datos['cerveza']}")
-        
-        print(f"{'='*70}\n")
-    
-    def ranking_general_ano(self, ano=None):
-        """Ranking general de todo el año"""
-        if ano is None:
-            ano = datetime.now().year
-        
-        print(f"\n{'='*70}")
-        print(f"🏆 RANKING GENERAL {ano} 🏆".center(70))
-        print(f"{'='*70}")
-        
-        ranking_data = []
-        
-        for persona in self.participantes:
-            total_puntos = 0
-            total_bebidas = {'cubata': 0, 'chupito': 0, 'cerveza': 0}
-            
-            # Sumar todos los meses
-            bebidas_ano = self.db.child(f'bebidas/{ano}').get() or {}
-            
-            for mes, datos_mes in bebidas_ano.items():
-                if persona in datos_mes:
-                    for tipo_bebida, cantidad in datos_mes[persona].items():
-                        if tipo_bebida in self.bebidas:
-                            total_bebidas[tipo_bebida] += cantidad
-                            total_puntos += cantidad * self.bebidas[tipo_bebida]['puntos']
-            
-            ranking_data.append((persona, total_puntos, total_bebidas))
-        
-        ranking_data.sort(key=lambda x: x[1], reverse=True)
-        
-        for pos, (persona, puntos, datos) in enumerate(ranking_data, 1):
-            medalla = self._obtener_medalla(pos)
-            print(f"{medalla} {pos}. {persona}: {puntos} pts")
-            print(f"    🍹 {datos['cubata']} | 🥃 {datos['chupito']} | 🍺 {datos['cerveza']}")
-        
-        print(f"{'='*70}\n")
-    
-    def historico_persona(self, persona, ano=None):
-        """Muestra el histórico mensual de una persona"""
-        if ano is None:
-            ano = datetime.now().year
-        
-        print(f"\n{'='*70}")
-        print(f"📊 HISTÓRICO {persona.upper()} - {ano} 📊".center(70))
-        print(f"{'='*70}")
-        
-        bebidas_ano = self.db.child(f'bebidas/{ano}').get() or {}
-        
-        total_anual = {'cubata': 0, 'chupito': 0, 'cerveza': 0, 'puntos': 0}
-        
-        for mes_num in range(1, 13):
-            mes_str = f"{ano}-{mes_num:02d}"
-            
-            if mes_str in bebidas_ano and persona in bebidas_ano[mes_str]:
-                datos = bebidas_ano[mes_str][persona]
-                puntos = sum(datos.get(tipo, 0) * self.bebidas[tipo]['puntos'] 
-                           for tipo in self.bebidas.keys())
-                
-                print(f"\n📅 {self._nombre_mes(mes_num)}:")
-                print(f"   🍹 Cubatas: {datos.get('cubata', 0)}")
-                print(f"   🥃 Chupitos: {datos.get('chupito', 0)}")
-                print(f"   🍺 Cervezas: {datos.get('cerveza', 0)}")
-                print(f"   🎯 Puntos: {puntos}")
-                
-                for tipo in self.bebidas.keys():
-                    total_anual[tipo] += datos.get(tipo, 0)
-                total_anual['puntos'] += puntos
-        
-        print(f"\n{'─'*70}")
-        print(f"📈 TOTAL {ano}:")
-        print(f"   🍹 Total Cubatas: {total_anual['cubata']}")
-        print(f"   🥃 Total Chupitos: {total_anual['chupito']}")
-        print(f"   🍺 Total Cervezas: {total_anual['cerveza']}")
-        print(f"   🎯 TOTAL PUNTOS: {total_anual['puntos']}")
-        print(f"{'='*70}\n")
-    
-    def comparativa_meses(self, ano=None):
-        """Muestra una comparativa de todos los meses"""
-        if ano is None:
-            ano = datetime.now().year
-        
-        print(f"\n{'='*90}")
-        print(f"📊 COMPARATIVA MENSUAL {ano} 📊".center(90))
-        print(f"{'='*90}")
-        
-        bebidas_ano = self.db.child(f'bebidas/{ano}').get() or {}
-        
-        for mes_num in range(1, 13):
-            mes_str = f"{ano}-{mes_num:02d}"
-            
-            if mes_str in bebidas_ano:
-                print(f"\n🗓️  {self._nombre_mes(mes_num).upper()}")
-                print(f"{'─'*90}")
-                
-                # Calcular totales del mes
-                totales = {'cubata': 0, 'chupito': 0, 'cerveza': 0}
-                
-                for persona in self.participantes:
-                    if persona in bebidas_ano[mes_str]:
-                        datos = bebidas_ano[mes_str][persona]
-                        for tipo in self.bebidas.keys():
-                            totales[tipo] += datos.get(tipo, 0)
-                
-                print(f"🍹 Cubatas: {totales['cubata']} | 🥃 Chupitos: {totales['chupito']} | 🍺 Cervezas: {totales['cerveza']}")
-                print(f"🍻 Total bebidas: {sum(totales.values())}")
-        
-        print(f"{'='*90}\n")
-    
-    def contador_salidas(self, ano=None):
-        """Muestra el contador de salidas del año"""
-        if ano is None:
-            ano = datetime.now().year
-        
-        salidas_data = self.db.child(f'salidas/{ano}').get()
-        
-        if not salidas_data:
-            print(f"❌ No hay salidas registradas en {ano}")
-            return
-        
-        total = salidas_data.get('total', 0)
-        historico = salidas_data.get('historico', {})
-        
-        print(f"\n{'='*70}")
-        print(f"🎉 CONTADOR DE SALIDAS {ano} 🎉".center(70))
-        print(f"{'='*70}")
-        print(f"\n🍻 Total de salidas: {total}\n")
-        
-        if historico:
-            print("📅 Histórico de salidas:")
-            for fecha, datos in sorted(historico.items(), reverse=True)[:10]:
-                print(f"   • {datos['fecha']} - Salida #{datos['numero']}")
-        
-        print(f"{'='*70}\n")
-    
-    def _nombre_mes(self, mes):
-        """Convierte número de mes a nombre"""
-        meses = {
-            1: "Enero", 2: "Febrero", 3: "Marzo", 4: "Abril",
-            5: "Mayo", 6: "Junio", 7: "Julio", 8: "Agosto",
-            9: "Septiembre", 10: "Octubre", 11: "Noviembre", 12: "Diciembre"
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
         }
-        return meses.get(mes, "")
-    
-    def _obtener_medalla(self, posicion):
-        """Retorna emoji de medalla según posición"""
-        medallas = {1: "🥇", 2: "🥈", 3: "🥉"}
-        return medallas.get(posicion, f"{posicion}.")
 
+        header {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+        }
 
-# MENÚ INTERACTIVO
-def menu_principal():
-    print("🔥 Inicializando conexión con Firebase...")
-    print("📝 Coloca tu archivo de credenciales en la misma carpeta")
-    
-    ruta_credenciales = input("Ruta al archivo de credenciales (ej: credenciales.json): ").strip()
-    
-    try:
-        sistema = BebidasFirebase2026(ruta_credenciales)
-        print("✅ Conexión exitosa con Firebase!\n")
-    except Exception as e:
-        print(f"❌ Error al conectar con Firebase: {e}")
-        return
-    
-    while True:
-        print("\n" + "🍻"*30)
-        print("🎉 SISTEMA DE BEBIDAS 2026 - FIREBASE 🎉".center(60))
-        print("🍻"*30)
-        print("\n📊 GESTIÓN DE BEBIDAS")
-        print("1. ➕ Añadir bebida")
-        print("2. ➖ Quitar bebida")
-        print("3. 🎉 Registrar salida")
-        
-        print("\n🏆 RANKINGS")
-        print("4. 📅 Ver ranking del mes actual")
-        print("5. 📆 Ver ranking de un mes específico")
-        print("6. 🏅 Ver ranking general del año")
-        print("7. 🍹 Ranking por tipo de bebida (mes actual)")
-        
-        print("\n📊 HISTÓRICOS Y ESTADÍSTICAS")
-        print("8. 👤 Ver histórico de una persona")
-        print("9. 📈 Ver comparativa mensual")
-        print("10. 🎊 Ver contador de salidas")
-        
-        print("\n11. 🚪 Salir")
-        
-        opcion = input("\n👉 Elige una opción: ").strip()
-        
-        if opcion == "1":
-            print("\n📋 PERSONAS:")
-            for i, p in enumerate(sistema.participantes, 1):
-                print(f"{i}. {p}")
-            
-            try:
-                persona_num = int(input("\n¿Quién bebió? (número): "))
-                persona = sistema.participantes[persona_num - 1]
-                
-                print("\n🍹 1. Cubata (5 pts)")
-                print("🥃 2. Chupito (3 pts)")
-                print("🍺 3. Cerveza (1 pt)")
-                
-                bebida_num = input("¿Qué bebió? (número): ").strip()
-                bebidas_map = {"1": "cubata", "2": "chupito", "3": "cerveza"}
-                tipo_bebida = bebidas_map.get(bebida_num)
-                
-                cantidad = int(input("¿Cuántas? (por defecto 1): ") or "1")
-                
-                sistema.agregar_bebida(persona, tipo_bebida, cantidad)
-            except (ValueError, IndexError):
-                print("❌ Opción no válida")
-        
-        elif opcion == "2":
-            print("\n📋 PERSONAS:")
-            for i, p in enumerate(sistema.participantes, 1):
-                print(f"{i}. {p}")
-            
-            try:
-                persona_num = int(input("\n¿A quién corregir? (número): "))
-                persona = sistema.participantes[persona_num - 1]
-                
-                print("\n🍹 1. Cubata")
-                print("🥃 2. Chupito")
-                print("🍺 3. Cerveza")
-                
-                bebida_num = input("¿Qué bebida quitar? (número): ").strip()
-                bebidas_map = {"1": "cubata", "2": "chupito", "3": "cerveza"}
-                tipo_bebida = bebidas_map.get(bebida_num)
-                
-                cantidad = int(input("¿Cuántas quitar? (por defecto 1): ") or "1")
-                
-                sistema.quitar_bebida(persona, tipo_bebida, cantidad)
-            except (ValueError, IndexError):
-                print("❌ Opción no válida")
-        
-        elif opcion == "3":
-            sistema.registrar_salida()
-        
-        elif opcion == "4":
-            sistema.ranking_mes()
-        
-        elif opcion == "5":
-            try:
-                ano = int(input("Año (ej: 2026): ") or datetime.now().year)
-                mes = int(input("Mes (1-12): "))
-                sistema.ranking_mes(ano, mes)
-            except ValueError:
-                print("❌ Año o mes no válido")
-        
-        elif opcion == "6":
-            ano = int(input("Año (por defecto 2026): ") or 2026)
-            sistema.ranking_general_ano(ano)
-        
-        elif opcion == "7":
-            print("\n🍹 1. Ranking de Cubatas")
-            print("🥃 2. Ranking de Chupitos")
-            print("🍺 3. Ranking de Cervezas")
-            
-            tipo_num = input("¿Qué ranking ver? (número): ").strip()
-            tipos_map = {"1": "cubata", "2": "chupito", "3": "cerveza"}
-            
-            # Implementar ranking por tipo...
-            print("(Función a implementar)")
-        
-        elif opcion == "8":
-            print("\n📋 PERSONAS:")
-            for i, p in enumerate(sistema.participantes, 1):
-                print(f"{i}. {p}")
-            
-            try:
-                persona_num = int(input("\n¿De quién ver el histórico? (número): "))
-                persona = sistema.participantes[persona_num - 1]
-                sistema.historico_persona(persona)
-            except (ValueError, IndexError):
-                print("❌ Opción no válida")
-        
-        elif opcion == "9":
-            sistema.comparativa_meses()
-        
-        elif opcion == "10":
-            sistema.contador_salidas()
-        
-        elif opcion == "11":
-            print("\n👋 ¡Hasta luego! 🍻")
-            break
-        
-        else:
-            print("❌ Opción no válida")
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
 
+        .subtitle {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
 
-if __name__ == "__main__":
-    menu_principal()
+        .main-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin-bottom: 40px;
+        }
 
+        .person-card {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
 
+        .person-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.3);
+        }
+
+        .person-name {
+            font-size: 1.3em;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .drinks-section {
+            margin-bottom: 15px;
+        }
+
+        .drink-type {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+            padding: 10px;
+            background: #f5f5f5;
+            border-radius: 8px;
+        }
+
+        .drink-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 1em;
+            font-weight: 500;
+        }
+
+        .drink-emoji {
+            font-size: 1.5em;
+        }
+
+        .drink-count {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #667eea;
+            min-width: 30px;
+            text-align: center;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 8px;
+        }
+
+        button {
+            padding: 8px 12px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.2s ease;
+            font-size: 0.9em;
+        }
+
+        .btn-add {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .btn-add:hover {
+            background: #45a049;
+            transform: scale(1.05);
+        }
+
+        .btn-subtract {
+            background: #f44336;
+            color: white;
+        }
+
+        .btn-subtract:hover {
+            background: #da190b;
+            transform: scale(1.05);
+        }
+
+        .points-display {
+            text-align: center;
+            margin-top: 15px;
+            padding: 12px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 8px;
+            font-size: 1.1em;
+            font-weight: bold;
+        }
+
+        .stats-section {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 30px;
+        }
+
+        .stats-title {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .stat-label {
+            font-size: 0.9em;
+            opacity: 0.9;
+            margin-bottom: 8px;
+        }
+
+        .stat-value {
+            font-size: 2em;
+            font-weight: bold;
+        }
+
+        .ranking-section {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .ranking-title {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .ranking-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 15px;
+            border-bottom: 1px solid #eee;
+            transition: background 0.2s ease;
+        }
+
+        .ranking-item:hover {
+            background: #f9f9f9;
+        }
+
+        .ranking-position {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex: 1;
+        }
+
+        .medal {
+            font-size: 1.8em;
+            min-width: 40px;
+            text-align: center;
+        }
+
+        .ranking-name {
+            font-weight: bold;
+            color: #333;
+            font-size: 1.1em;
+        }
+
+        .ranking-points {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .controls {
+            text-align: center;
+            margin-top: 30px;
+        }
+
+        .btn-reset {
+            padding: 12px 30px;
+            background: #ff9800;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-reset:hover {
+            background: #e68900;
+            transform: scale(1.05);
+        }
+
+        .btn-export {
+            padding: 12px 30px;
+            background: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin-left: 10px;
+        }
+
+        .btn-export:hover {
+            background: #0b7dda;
+            transform: scale(1.05);
+        }
+
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 1.8em;
+            }
+
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🍻 Contador de Bebidas 2026</h1>
+            <p class="subtitle">Registra y compite con tus colegas</p>
+        </header>
+
+        <div class="main-grid" id="mainGrid"></div>
+
+        <div class="stats-section">
+            <div class="stats-title">📊 Estadísticas Generales</div>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-label">Total Cubatas</div>
+                    <div class="stat-value" id="totalCubatas">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Total Chupitos</div>
+                    <div class="stat-value" id="totalChupitos">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Total Cervezas</div>
+                    <div class="stat-value" id="totalCervezas">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Puntos Totales</div>
+                    <div class="stat-value" id="totalPuntos">0</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="ranking-section">
+            <div class="ranking-title">🏆 Ranking de Competidores</div>
+            <div id="ranking"></div>
+        </div>
+
+        <div class="controls">
+            <button class="btn-reset" onclick="resetAll()">🔄 Reiniciar Todo</button>
+            <button class="btn-export" onclick="exportData()">💾 Descargar Datos</button>
+        </div>
+    </div>
+
+    <script>
+        const personas = [
+            'Jonmi', 'Marce', 'Lucho', 'Diego', 'Markitos',
+            'Boveda', 'Bipo', 'Ferrer', 'Wichi', 'Rabu', 'Llorden'
+        ];
+
+        const drinks = {
+            cubata: { emoji: '🍹', points: 5, label: 'Cubata' },
+            chupito: { emoji: '🥃', points: 3, label: 'Chupito' },
+            cerveza: { emoji: '🍺', points: 1, label: 'Cerveza' }
+        };
+
+        let data = {};
+
+        // Inicializar datos
+        function initData() {
+            const saved = localStorage.getItem('contadorBebidas');
+            if (saved) {
+                data = JSON.parse(saved);
+            } else {
+                personas.forEach(persona => {
+                    data[persona] = {
+                        cubata: 0,
+                        chupito: 0,
+                        cerveza: 0
+                    };
+                });
+            }
+        }
+
+        // Guardar datos
+        function saveData() {
+            localStorage.setItem('contadorBebidas', JSON.stringify(data));
+            updateUI();
+        }
+
+        // Añadir bebida
+        function addDrink(persona, type) {
+            data[persona][type]++;
+            saveData();
+        }
+
+        // Restar bebida
+        function subtractDrink(persona, type) {
+            if (data[persona][type] > 0) {
+                data[persona][type]--;
+                saveData();
+            }
+        }
+
+        // Calcular puntos de una persona
+        function calcularPuntos(persona) {
+            return (data[persona].cubata * 5) + (data[persona].chupito * 3) + (data[persona].cerveza * 1);
+        }
+
+        // Actualizar interfaz
+        function updateUI() {
+            renderPersonas();
+            updateStats();
+            updateRanking();
+        }
+
+        // Renderizar tarjetas de personas
+        function renderPersonas() {
+            const grid = document.getElementById('mainGrid');
+            grid.innerHTML = '';
+
+            personas.forEach(persona => {
+                const card = document.createElement('div');
+                card.className = 'person-card';
+                card.innerHTML = `
+                    <div class="person-name">${persona}</div>
+                    <div class="drinks-section">
+                        <div class="drink-type">
+                            <div class="drink-label">
+                                <span class="drink-emoji">${drinks.cubata.emoji}</span>
+                                <span>${drinks.cubata.label}</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <div class="drink-count">${data[persona].cubata}</div>
+                                <div class="button-group">
+                                    <button class="btn-add" onclick="addDrink('${persona}', 'cubata')">+</button>
+                                    <button class="btn-subtract" onclick="subtractDrink('${persona}', 'cubata')">−</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="drink-type">
+                            <div class="drink-label">
+                                <span class="drink-emoji">${drinks.chupito.emoji}</span>
+                                <span>${drinks.chupito.label}</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <div class="drink-count">${data[persona].chupito}</div>
+                                <div class="button-group">
+                                    <button class="btn-add" onclick="addDrink('${persona}', 'chupito')">+</button>
+                                    <button class="btn-subtract" onclick="subtractDrink('${persona}', 'chupito')">−</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="drink-type">
+                            <div class="drink-label">
+                                <span class="drink-emoji">${drinks.cerveza.emoji}</span>
+                                <span>${drinks.cerveza.label}</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <div class="drink-count">${data[persona].cerveza}</div>
+                                <div class="button-group">
+                                    <button class="btn-add" onclick="addDrink('${persona}', 'cerveza')">+</button>
+                                    <button class="btn-subtract" onclick="subtractDrink('${persona}', 'cerveza')">−</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="points-display">Puntos: ${calcularPuntos(persona)}</div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        // Actualizar estadísticas
+        function updateStats() {
+            let totalCubatas = 0, totalChupitos = 0, totalCervezas = 0, totalPuntos = 0;
+
+            personas.forEach(persona => {
+                totalCubatas += data[persona].cubata;
+                totalChupitos += data[persona].chupito;
+                totalCervezas += data[persona].cerveza;
+                totalPuntos += calcularPuntos(persona);
+            });
+
+            document.getElementById('totalCubatas').textContent = totalCubatas;
+            document.getElementById('totalChupitos').textContent = totalChupitos;
+            document.getElementById('totalCervezas').textContent = totalCervezas;
+            document.getElementById('totalPuntos').textContent = totalPuntos;
+        }
+
+        // Actualizar ranking
+        function updateRanking() {
+            const ranking = personas.map(persona => ({
+                nombre: persona,
+                puntos: calcularPuntos(persona)
+            })).sort((a, b) => b.puntos - a.puntos);
+
+            const rankingDiv = document.getElementById('ranking');
+            rankingDiv.innerHTML = '';
+
+            const medals = ['🥇', '🥈', '🥉'];
+
+            ranking.forEach((item, index) => {
+                const medal = medals[index] || '•';
+                const rankItem = document.createElement('div');
+                rankItem.className = 'ranking-item';
+                rankItem.innerHTML = `
+                    <div class="ranking-position">
+                        <div class="medal">${medal}</div>
+                        <div class="ranking-name">${item.nombre}</div>
+                    </div>
+                    <div class="ranking-points">${item.puntos} pts</div>
+                `;
+                rankingDiv.appendChild(rankItem);
+            });
+        }
+
+        // Reiniciar todo
+        function resetAll() {
+            if (confirm('¿Estás seguro de que quieres reiniciar todos los datos?')) {
+                personas.forEach(persona => {
+                    data[persona] = { cubata: 0, chupito: 0, cerveza: 0 };
+                });
+                saveData();
+            }
+        }
+
+        // Exportar datos
+        function exportData() {
+            let csv = 'Persona,Cubatas,Chupitos,Cervezas,Puntos\n';
+            personas.forEach(persona => {
+                const puntos = calcularPuntos(persona);
+                csv += `${persona},${data[persona].cubata},${data[persona].chupito},${data[persona].cerveza},${puntos}\n`;
+            });
+
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'contador-bebidas-2026.csv';
+            a.click();
+        }
+
+        // Inicializar
+        initData();
+        updateUI();
+    </script>
+</body>
+</html>
