@@ -77,6 +77,7 @@ canvas { margin-top:16px; }
 
 <h1>🍹 Cubatas 2026</h1>
 
+<!-- TOGGLES -->
 <div class="toggles">
   <button id="toggleMensual" class="toggle active" onclick="toggleSection('mensual')">
     🗓️ Mensual
@@ -94,6 +95,19 @@ canvas { margin-top:16px; }
   <h2>🏆 Clasificación mensual</h2>
   <div id="mensualRanking"></div>
 
+  <button onclick="closeMonth()" style="
+    width:100%;
+    margin-top:16px;
+    padding:12px;
+    border:none;
+    border-radius:12px;
+    background:#ef4444;
+    color:white;
+    font-size:16px;
+    cursor:pointer;">
+    🔒 Cerrar mes
+  </button>
+
   <canvas id="chartMensual"></canvas>
 </div>
 
@@ -106,6 +120,9 @@ canvas { margin-top:16px; }
 </div>
 
 <script>
+/* 🔐 PIN ADMIN */
+const ADMIN_PIN = "2002";
+
 /* 🔧 TU FIREBASE */
 const firebaseConfig = {
   apiKey: "AIzaSyC2O75FYQDljmMeu36yB94KbOmAZdgX4d4",
@@ -137,7 +154,6 @@ function toggleSection(type){
   document.getElementById("toggle"+cap(type))
     .classList.toggle("active", state[type]);
 }
-
 function cap(s){ return s.charAt(0).toUpperCase()+s.slice(1); }
 
 /* INICIALIZAR */
@@ -194,10 +210,47 @@ function renderChart(canvasId, data){
   if(canvasId==="chartHistorico") chartHistorico=chart;
 }
 
-/* RENDER GENERAL */
+/* CERRAR MES */
+function closeMonth(){
+  const pin = prompt("🔐 Introduce el PIN de administrador:");
+  if(pin !== ADMIN_PIN){
+    alert("❌ PIN incorrecto");
+    return;
+  }
+
+  const monthName = prompt("📅 Nombre del mes (ej: Enero 2026):");
+  if(!monthName) return;
+
+  if(!confirm(`⚠️ Cerrar "${monthName}" y pasar datos al histórico?`)) return;
+
+  const monthKey = new Date().toISOString().slice(0,7);
+
+  db.ref("users").once("value",snap=>{
+    const data=snap.val()||{};
+    Object.entries(data).forEach(([name,u])=>{
+      const m=u.mensual, h=u.historico;
+      db.ref("users/"+name).update({
+        historico:{
+          cubata:(h.cubata||0)+(m.cubata||0),
+          cana:(h.cana||0)+(m.cana||0),
+          chupito:(h.chupito||0)+(m.chupito||0)
+        },
+        mensual:{cubata:0,cana:0,chupito:0}
+      });
+    });
+
+    db.ref("months/"+monthKey).set({
+      name:monthName,
+      closedAt:new Date().toISOString()
+    });
+
+    alert("✅ Mes cerrado correctamente");
+  });
+}
+
+/* RENDER */
 db.ref("users").on("value",snap=>{
   const data=snap.val()||{};
-
   mensualApp.innerHTML="";
   mensualRanking.innerHTML="";
   historicoRanking.innerHTML="";
@@ -207,8 +260,8 @@ db.ref("users").on("value",snap=>{
 
   Object.entries(data).forEach(([name,u])=>{
     const m=u.mensual, h=u.historico;
-    mensualArr.push({name,pts:points(m),...m});
-    historicoArr.push({name,pts:points(h),...h});
+    mensualArr.push({name,pts:points(m)});
+    historicoArr.push({name,pts:points(h)});
 
     const row=document.createElement("div");
     row.className="row";
@@ -229,21 +282,22 @@ db.ref("users").on("value",snap=>{
   mensualArr.sort((a,b)=>b.pts-a.pts).forEach((u,i)=>{
     const d=document.createElement("div");
     d.className="rank-row";
-    d.innerHTML=`<span>${i<3?"🥇🥈🥉"[i*2]:""} ${u.name}</span><strong>${u.pts}</strong>`;
+    d.innerHTML=`<span>${["🥇","🥈","🥉"][i]||""} ${u.name}</span><strong>${u.pts}</strong>`;
     mensualRanking.appendChild(d);
   });
 
   historicoArr.sort((a,b)=>b.pts-a.pts).forEach((u,i)=>{
     const d=document.createElement("div");
     d.className="rank-row";
-    d.innerHTML=`<span>${i<3?"🥇🥈🥉"[i*2]:""} ${u.name}</span><strong>${u.pts}</strong>`;
+    d.innerHTML=`<span>${["🥇","🥈","🥉"][i]||""} ${u.name}</span><strong>${u.pts}</strong>`;
     historicoRanking.appendChild(d);
   });
 
-  if(state.mensual) renderChart("chartMensual", mensualArr);
-  if(state.historico) renderChart("chartHistorico", historicoArr);
+  if(state.mensual) renderChart("chartMensual",mensualArr);
+  if(state.historico) renderChart("chartHistorico",historicoArr);
 });
 </script>
 
 </body>
 </html>
+
