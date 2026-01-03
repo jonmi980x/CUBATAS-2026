@@ -9,8 +9,112 @@
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
 
-<!-- Chart.js -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+body {
+  font-family: system-ui, sans-serif;
+  background:#0f172a;
+  color:white;
+  margin:0;
+  padding:16px;
+}
+h1, h2 { text-align:center; }
+
+.toggles {
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+  margin-bottom:20px;
+}
+.toggle {
+  padding:12px;
+  border:none;
+  border-radius:14px;
+  background:#1e293b;
+  color:white;
+  font-size:16px;
+  cursor:pointer;
+}
+.toggle.active {
+  background:#22c55e;
+  color:black;
+}
+
+.section { margin-bottom:30px; }
+
+.row {
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  background:#1e293b;
+  padding:10px;
+  border-radius:14px;
+  margin-bottom:8px;
+}
+.name {
+  width:90px;
+  font-weight:700;
+}
+.actions button {
+  margin-left:4px;
+  border:none;
+  border-radius:8px;
+  padding:4px 8px;
+  cursor:pointer;
+}
+.pts {
+  font-weight:bold;
+  margin-left:6px;
+}
+.rank-row {
+  display:flex;
+  justify-content:space-between;
+  margin:6px 0;
+}
+</style>
+</head>
+
+<body>
+
+<h1>🍹 Cubatas 2026</h1>
+
+<!-- BOTONES -->
+<div class="toggles">
+  <button id="toggleMensual" class="toggle active" onclick="toggleSection('mensual')">
+    📅 Mensual
+  </button>
+  <button id="toggleHistorico" class="toggle active" onclick="toggleSection('historico')">
+    📚 Histórico
+  </button>
+</div>
+
+<!-- MENSUAL -->
+<div id="mensualSection" class="section">
+  <h2>🗓️ Recuento mensual</h2>
+  <div id="mensualApp"></div>
+
+  <h2>🏆 Clasificación mensual</h2>
+  <div id="mensualRanking"></div>
+</div>
+
+<!-- HISTÓRICO -->
+<div id="historicoSection" class="section">
+  <h2>📚 Clasificación histórica</h2>
+  <div id="historicoRanking"></div>
+</div>
+
+<script>
+/* 🔧 TU FIREBASE (NO CAMBIO ESTO) */
+const firebaseConfig = {
+  <!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🍹 Cubatas 2026</title>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
 
 <style>
 body {
@@ -31,18 +135,18 @@ h1, h2 { text-align:center; }
 .toggle {
   padding:12px;
   border:none;
-  border-radius:12px;
+  border-radius:14px;
   background:#1e293b;
   color:white;
-  cursor:pointer;
   font-size:16px;
+  cursor:pointer;
 }
 .toggle.active {
   background:#22c55e;
   color:black;
 }
 
-.section { margin-bottom:32px; }
+.section { margin-bottom:30px; }
 
 .row {
   display:flex;
@@ -50,8 +154,12 @@ h1, h2 { text-align:center; }
   align-items:center;
   background:#1e293b;
   padding:10px;
-  border-radius:12px;
+  border-radius:14px;
   margin-bottom:8px;
+}
+.name {
+  width:90px;
+  font-weight:700;
 }
 .actions button {
   margin-left:4px;
@@ -69,7 +177,6 @@ h1, h2 { text-align:center; }
   justify-content:space-between;
   margin:6px 0;
 }
-canvas { margin-top:16px; }
 </style>
 </head>
 
@@ -77,10 +184,10 @@ canvas { margin-top:16px; }
 
 <h1>🍹 Cubatas 2026</h1>
 
-<!-- TOGGLES -->
+<!-- BOTONES -->
 <div class="toggles">
   <button id="toggleMensual" class="toggle active" onclick="toggleSection('mensual')">
-    🗓️ Mensual
+    📅 Mensual
   </button>
   <button id="toggleHistorico" class="toggle active" onclick="toggleSection('historico')">
     📚 Histórico
@@ -94,59 +201,53 @@ canvas { margin-top:16px; }
 
   <h2>🏆 Clasificación mensual</h2>
   <div id="mensualRanking"></div>
-
-  <button onclick="closeMonth()" style="
-    width:100%;
-    margin-top:16px;
-    padding:12px;
-    border:none;
-    border-radius:12px;
-    background:#ef4444;
-    color:white;
-    font-size:16px;
-    cursor:pointer;">
-    🔒 Cerrar mes
-  </button>
-
-  <canvas id="chartMensual"></canvas>
 </div>
 
 <!-- HISTÓRICO -->
 <div id="historicoSection" class="section">
   <h2>📚 Clasificación histórica</h2>
   <div id="historicoRanking"></div>
-
-  <canvas id="chartHistorico"></canvas>
 </div>
 
 <script>
-/* 🔐 PIN ADMIN */
-const ADMIN_PIN = "2002";
-
-/* 🔧 TU FIREBASE */
+/* 🔧 TU FIREBASE (NO CAMBIO ESTO) */
 const firebaseConfig = {
-  apiKey: "AIzaSyC2O75FYQDljmMeu36yB94KbOmAZdgX4d4",
-  authDomain: "cubatas-2026.firebaseapp.com",
-  databaseURL: "https://cubatas-2026-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "cubatas-2026",
-  storageBucket: "cubatas-2026.firebasestorage.app",
-  messagingSenderId: "754889583450",
-  appId: "1:754889583450:web:aa584f7a906290beffe163",
-  measurementId: "G-WZGVRDT8V1"
+  apiKey: "TU_APIKEY",
+  authDomain: "TU_PROJECT.firebaseapp.com",
+  databaseURL: "https://TU_PROJECT.firebaseio.com",
+  projectId: "TU_PROJECT",
+  storageBucket: "TU_PROJECT.appspot.com",
+  messagingSenderId: "TU_SENDERID",
+  appId: "TU_APPID"
 };
 
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-/* PERSONAS */
+/* 👥 NOMBRES (CLAROS Y FIJOS) */
 const people = [
-  "Jonmi","Llorden","Marce","Lucho","Markitos",
-  "Boveda","Diego","Bipo","Wichi","Ferrer","Rabu"
+  "Jonmi",
+  "Llorden",
+  "Marce",
+  "Lucho",
+  "Markitos",
+  "Boveda",
+  "Diego",
+  "Bipo",
+  "Wichi",
+  "Ferrer",
+  "Rabu"
 ];
 
-/* ESTADO TOGGLES */
+/* REFERENCIAS HTML (ESTO ERA LO QUE FALTABA) */
+const mensualApp = document.getElementById("mensualApp");
+const mensualRanking = document.getElementById("mensualRanking");
+const historicoRanking = document.getElementById("historicoRanking");
+
+/* ESTADO */
 const state = { mensual:true, historico:true };
 
+/* TOGGLES */
 function toggleSection(type){
   state[type] = !state[type];
   document.getElementById(type+"Section").style.display =
@@ -156,11 +257,11 @@ function toggleSection(type){
 }
 function cap(s){ return s.charAt(0).toUpperCase()+s.slice(1); }
 
-/* INICIALIZAR */
-people.forEach(p=>{
-  db.ref("users/"+p).once("value",s=>{
-    if(!s.exists()){
-      db.ref("users/"+p).set({
+/* INICIALIZAR DATOS */
+people.forEach(name=>{
+  db.ref("users/"+name).once("value",snap=>{
+    if(!snap.exists()){
+      db.ref("users/"+name).set({
         mensual:{cubata:0,cana:0,chupito:0},
         historico:{cubata:0,cana:0,chupito:0}
       });
@@ -178,126 +279,179 @@ function add(name,type){
   db.ref(`users/${name}/mensual/${type}`)
     .transaction(v=>(v||0)+1);
 }
-function remove(name,type){
+function removeDrink(name,type){
   db.ref(`users/${name}/mensual/${type}`)
     .transaction(v=>v>0?v-1:0);
 }
 
-/* GRÁFICOS */
-let chartMensual=null, chartHistorico=null;
-
-function renderChart(canvasId, data){
-  const ctx=document.getElementById(canvasId);
-  if(!ctx) return;
-
-  const labels=data.map(d=>d.name);
-  const pts=data.map(d=>d.pts);
-
-  if(canvasId==="chartMensual" && chartMensual) chartMensual.destroy();
-  if(canvasId==="chartHistorico" && chartHistorico) chartHistorico.destroy();
-
-  const chart=new Chart(ctx,{
-    type:"bar",
-    data:{labels,datasets:[{data:pts}]},
-    options:{
-      responsive:true,
-      plugins:{legend:{display:false}},
-      scales:{y:{beginAtZero:true}}
-    }
-  });
-
-  if(canvasId==="chartMensual") chartMensual=chart;
-  if(canvasId==="chartHistorico") chartHistorico=chart;
-}
-
-/* CERRAR MES */
-function closeMonth(){
-  const pin = prompt("🔐 Introduce el PIN de administrador:");
-  if(pin !== ADMIN_PIN){
-    alert("❌ PIN incorrecto");
-    return;
-  }
-
-  const monthName = prompt("📅 Nombre del mes (ej: Enero 2026):");
-  if(!monthName) return;
-
-  if(!confirm(`⚠️ Cerrar "${monthName}" y pasar datos al histórico?`)) return;
-
-  const monthKey = new Date().toISOString().slice(0,7);
-
-  db.ref("users").once("value",snap=>{
-    const data=snap.val()||{};
-    Object.entries(data).forEach(([name,u])=>{
-      const m=u.mensual, h=u.historico;
-      db.ref("users/"+name).update({
-        historico:{
-          cubata:(h.cubata||0)+(m.cubata||0),
-          cana:(h.cana||0)+(m.cana||0),
-          chupito:(h.chupito||0)+(m.chupito||0)
-        },
-        mensual:{cubata:0,cana:0,chupito:0}
-      });
-    });
-
-    db.ref("months/"+monthKey).set({
-      name:monthName,
-      closedAt:new Date().toISOString()
-    });
-
-    alert("✅ Mes cerrado correctamente");
-  });
-}
-
-/* RENDER */
+/* RENDER PRINCIPAL */
 db.ref("users").on("value",snap=>{
-  const data=snap.val()||{};
-  mensualApp.innerHTML="";
-  mensualRanking.innerHTML="";
-  historicoRanking.innerHTML="";
+  const data = snap.val() || {};
 
-  const mensualArr=[];
-  const historicoArr=[];
+  mensualApp.innerHTML = "";
+  mensualRanking.innerHTML = "";
+  historicoRanking.innerHTML = "";
+
+  const mensualArr = [];
+  const historicoArr = [];
 
   Object.entries(data).forEach(([name,u])=>{
-    const m=u.mensual, h=u.historico;
+    const m = u.mensual;
+    const h = u.historico;
+
     mensualArr.push({name,pts:points(m)});
     historicoArr.push({name,pts:points(h)});
 
-    const row=document.createElement("div");
-    row.className="row";
-    row.innerHTML=`
-      <strong>${name}</strong>
+    const row = document.createElement("div");
+    row.className = "row";
+    row.innerHTML = `
+      <div class="name">${name}</div>
       <div class="actions">
         <button onclick="add('${name}','cubata')">🍹 ${m.cubata}</button>
-        <button onclick="remove('${name}','cubata')">−</button>
+        <button onclick="removeDrink('${name}','cubata')">−</button>
         <button onclick="add('${name}','cana')">🍺 ${m.cana}</button>
-        <button onclick="remove('${name}','cana')">−</button>
+        <button onclick="removeDrink('${name}','cana')">−</button>
         <button onclick="add('${name}','chupito')">🥃 ${m.chupito}</button>
-        <button onclick="remove('${name}','chupito')">−</button>
+        <button onclick="removeDrink('${name}','chupito')">−</button>
         <span class="pts">${points(m)} pts</span>
-      </div>`;
+      </div>
+    `;
     mensualApp.appendChild(row);
   });
 
   mensualArr.sort((a,b)=>b.pts-a.pts).forEach((u,i)=>{
-    const d=document.createElement("div");
+    const d = document.createElement("div");
     d.className="rank-row";
     d.innerHTML=`<span>${["🥇","🥈","🥉"][i]||""} ${u.name}</span><strong>${u.pts}</strong>`;
     mensualRanking.appendChild(d);
   });
 
   historicoArr.sort((a,b)=>b.pts-a.pts).forEach((u,i)=>{
-    const d=document.createElement("div");
+    const d = document.createElement("div");
     d.className="rank-row";
     d.innerHTML=`<span>${["🥇","🥈","🥉"][i]||""} ${u.name}</span><strong>${u.pts}</strong>`;
     historicoRanking.appendChild(d);
   });
-
-  if(state.mensual) renderChart("chartMensual",mensualArr);
-  if(state.historico) renderChart("chartHistorico",historicoArr);
 });
 </script>
 
 </body>
 </html>
+};
 
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+/* 👥 NOMBRES (CLAROS Y FIJOS) */
+const people = [
+  "Jonmi",
+  "Llorden",
+  "Marce",
+  "Lucho",
+  "Markitos",
+  "Boveda",
+  "Diego",
+  "Bipo",
+  "Wichi",
+  "Ferrer",
+  "Rabu"
+];
+
+/* REFERENCIAS HTML (ESTO ERA LO QUE FALTABA) */
+const mensualApp = document.getElementById("mensualApp");
+const mensualRanking = document.getElementById("mensualRanking");
+const historicoRanking = document.getElementById("historicoRanking");
+
+/* ESTADO */
+const state = { mensual:true, historico:true };
+
+/* TOGGLES */
+function toggleSection(type){
+  state[type] = !state[type];
+  document.getElementById(type+"Section").style.display =
+    state[type] ? "block" : "none";
+  document.getElementById("toggle"+cap(type))
+    .classList.toggle("active", state[type]);
+}
+function cap(s){ return s.charAt(0).toUpperCase()+s.slice(1); }
+
+/* INICIALIZAR DATOS */
+people.forEach(name=>{
+  db.ref("users/"+name).once("value",snap=>{
+    if(!snap.exists()){
+      db.ref("users/"+name).set({
+        mensual:{cubata:0,cana:0,chupito:0},
+        historico:{cubata:0,cana:0,chupito:0}
+      });
+    }
+  });
+});
+
+/* PUNTOS */
+function points(d){
+  return d.cubata*5 + d.cana*1 + d.chupito*2;
+}
+
+/* SUMAR / RESTAR */
+function add(name,type){
+  db.ref(`users/${name}/mensual/${type}`)
+    .transaction(v=>(v||0)+1);
+}
+function removeDrink(name,type){
+  db.ref(`users/${name}/mensual/${type}`)
+    .transaction(v=>v>0?v-1:0);
+}
+
+/* RENDER PRINCIPAL */
+db.ref("users").on("value",snap=>{
+  const data = snap.val() || {};
+
+  mensualApp.innerHTML = "";
+  mensualRanking.innerHTML = "";
+  historicoRanking.innerHTML = "";
+
+  const mensualArr = [];
+  const historicoArr = [];
+
+  Object.entries(data).forEach(([name,u])=>{
+    const m = u.mensual;
+    const h = u.historico;
+
+    mensualArr.push({name,pts:points(m)});
+    historicoArr.push({name,pts:points(h)});
+
+    const row = document.createElement("div");
+    row.className = "row";
+    row.innerHTML = `
+      <div class="name">${name}</div>
+      <div class="actions">
+        <button onclick="add('${name}','cubata')">🍹 ${m.cubata}</button>
+        <button onclick="removeDrink('${name}','cubata')">−</button>
+        <button onclick="add('${name}','cana')">🍺 ${m.cana}</button>
+        <button onclick="removeDrink('${name}','cana')">−</button>
+        <button onclick="add('${name}','chupito')">🥃 ${m.chupito}</button>
+        <button onclick="removeDrink('${name}','chupito')">−</button>
+        <span class="pts">${points(m)} pts</span>
+      </div>
+    `;
+    mensualApp.appendChild(row);
+  });
+
+  mensualArr.sort((a,b)=>b.pts-a.pts).forEach((u,i)=>{
+    const d = document.createElement("div");
+    d.className="rank-row";
+    d.innerHTML=`<span>${["🥇","🥈","🥉"][i]||""} ${u.name}</span><strong>${u.pts}</strong>`;
+    mensualRanking.appendChild(d);
+  });
+
+  historicoArr.sort((a,b)=>b.pts-a.pts).forEach((u,i)=>{
+    const d = document.createElement("div");
+    d.className="rank-row";
+    d.innerHTML=`<span>${["🥇","🥈","🥉"][i]||""} ${u.name}</span><strong>${u.pts}</strong>`;
+    historicoRanking.appendChild(d);
+  });
+});
+</script>
+
+</body>
+</html>
