@@ -1,55 +1,54 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Cubatas 2026</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cubatas 2026</title>
 
-  <!-- Firebase COMPAT -->
-  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+<!-- Firebase COMPAT -->
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
 
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #111827;
-      color: white;
-      padding: 20px;
-    }
-    h1 {
-      text-align: center;
-      margin-bottom: 20px;
-    }
-    .card {
-      background: #1f2933;
-      padding: 15px;
-      border-radius: 10px;
-      margin-bottom: 12px;
-    }
-    .name {
-      font-weight: bold;
-      margin-bottom: 10px;
-      text-align: center;
-    }
-    .row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin: 6px 0;
-    }
-    button {
-      font-size: 18px;
-      padding: 4px 10px;
-      margin: 0 4px;
-      cursor: pointer;
-    }
-    .points {
-      text-align: center;
-      margin-top: 8px;
-      font-weight: bold;
-      color: #38bdf8;
-    }
-  </style>
+<style>
+body {
+  font-family: Arial, sans-serif;
+  background:#111827;
+  color:white;
+  padding:20px;
+}
+h1,h2 { text-align:center; }
+.card {
+  background:#1f2933;
+  padding:15px;
+  border-radius:10px;
+  margin-bottom:12px;
+}
+.name { text-align:center; font-weight:bold; margin-bottom:8px; }
+.row {
+  display:flex;
+  justify-content:space-around;
+  align-items:center;
+}
+.controls button {
+  font-size:18px;
+  margin:0 4px;
+}
+.points { text-align:center; margin-top:6px; color:#38bdf8; font-weight:bold; }
+.rank-item {
+  display:flex;
+  justify-content:space-between;
+  padding:8px;
+  border-bottom:1px solid #374151;
+}
+.history {
+  background:#020617;
+  padding:10px;
+  border-radius:8px;
+  max-height:250px;
+  overflow:auto;
+  font-size:14px;
+}
+</style>
 </head>
 
 <body>
@@ -58,95 +57,114 @@
 
 <div id="app"></div>
 
+<h2>🏆 Ranking</h2>
+<div id="ranking"></div>
+
+<h2>📜 Histórico</h2>
+<div class="history" id="history"></div>
+
 <script>
-  // 🔥 FIREBASE CONFIG
-  const firebaseConfig = {
-    apiKey: "AIzaSyC2O75FYQDljmMeu36yB94KbOmAZdgX4d4",
-    authDomain: "cubatas-2026.firebaseapp.com",
-    databaseURL: "https://cubatas-2026-default-rtdb.europe-west1.firebasedatabase.app",
-    projectId: "cubatas-2026",
-    storageBucket: "cubatas-2026.firebasestorage.app",
-    messagingSenderId: "754889583450",
-    appId: "1:754889583450:web:aa584f7a906290beffe163"
-  };
+const firebaseConfig = {
+  apiKey: "AIzaSyC2O75FYQDljmMeu36yB94KbOmAZdgX4d4",
+  authDomain: "cubatas-2026.firebaseapp.com",
+  databaseURL: "https://cubatas-2026-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "cubatas-2026",
+  storageBucket: "cubatas-2026.firebasestorage.app",
+  messagingSenderId: "754889583450",
+  appId: "1:754889583450:web:aa584f7a906290beffe163"
+};
 
-  firebase.initializeApp(firebaseConfig);
-  const db = firebase.database();
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
 
-  const people = [
-    "Jonmi","Marce","Lucho","Diego","Markitos",
-    "Boveda","Bipo","Ferrer","Wichi","Rabu","Llorden"
-  ];
+const people = ["Jonmi","Marce","Lucho","Diego","Markitos","Boveda","Bipo","Ferrer","Wichi","Rabu","Llorden"];
 
-  const drinks = {
-    cubata: { emoji: "🍹", points: 5 },
-    chupito: { emoji: "🥃", points: 3 },
-    cerveza: { emoji: "🍺", points: 1 }
-  };
+const drinks = {
+  cubata:{emoji:"🍹",points:5},
+  chupito:{emoji:"🥃",points:3},
+  cerveza:{emoji:"🍺",points:1}
+};
 
-  const app = document.getElementById("app");
+const app = document.getElementById("app");
+const rankingDiv = document.getElementById("ranking");
+const historyDiv = document.getElementById("history");
 
-  // 🔁 Inicializar estructura si no existe
-  people.forEach(name => {
-    db.ref("datos/" + name).once("value", snap => {
-      if (!snap.exists()) {
-        db.ref("datos/" + name).set({
-          cubata: 0,
-          chupito: 0,
-          cerveza: 0
-        });
-      }
-    });
+// Init data
+people.forEach(p=>{
+  db.ref("datos/"+p).once("value",s=>{
+    if(!s.exists()){
+      db.ref("datos/"+p).set({cubata:0,chupito:0,cerveza:0});
+    }
   });
+});
 
-  // 🔁 Escuchar cambios en tiempo real
-  db.ref("datos").on("value", snap => {
-    const data = snap.val() || {};
-    app.innerHTML = "";
+// LISTEN DATA
+db.ref("datos").on("value",snap=>{
+  const data = snap.val()||{};
+  app.innerHTML="";
+  rankingDiv.innerHTML="";
 
-    people.forEach(name => {
-      const d = data[name] || { cubata:0, chupito:0, cerveza:0 };
+  let ranking=[];
 
-      const puntos =
-        d.cubata * 5 +
-        d.chupito * 3 +
-        d.cerveza * 1;
+  people.forEach(name=>{
+    const d=data[name]||{cubata:0,chupito:0,cerveza:0};
+    const pts=d.cubata*5+d.chupito*3+d.cerveza;
 
-      const card = document.createElement("div");
-      card.className = "card";
+    ranking.push({name,pts});
 
-      card.innerHTML = `
-        <div class="name">${name}</div>
-
-        ${Object.keys(drinks).map(type => `
-          <div class="row">
-            <span>${drinks[type].emoji}</span>
-            <div>
-              <button onclick="add('${name}','${type}')">➕</button>
-              <span>${d[type]}</span>
-              <button onclick="sub('${name}','${type}')">➖</button>
-            </div>
+    const card=document.createElement("div");
+    card.className="card";
+    card.innerHTML=`
+      <div class="name">${name}</div>
+      <div class="row">
+        ${Object.keys(drinks).map(t=>`
+          <div class="controls">
+            ${drinks[t].emoji}
+            <button onclick="change('${name}','${t}',1)">➕</button>
+            <span>${d[t]}</span>
+            <button onclick="change('${name}','${t}',-1)">➖</button>
           </div>
         `).join("")}
-
-        <div class="points">${puntos} puntos</div>
-      `;
-
-      app.appendChild(card);
-    });
+      </div>
+      <div class="points">${pts} puntos</div>
+    `;
+    app.appendChild(card);
   });
 
-  // ➕ Sumar
-  function add(name, type) {
-    db.ref("datos/" + name + "/" + type)
-      .transaction(v => (v || 0) + 1);
-  }
+  ranking.sort((a,b)=>b.pts-a.pts);
+  ranking.forEach((r,i)=>{
+    const medal=i===0?"🥇":i===1?"🥈":i===2?"🥉":"";
+    rankingDiv.innerHTML+=`<div class="rank-item">${medal} ${r.name}<strong>${r.pts}</strong></div>`;
+  });
+});
 
-  // ➖ Restar
-  function sub(name, type) {
-    db.ref("datos/" + name + "/" + type)
-      .transaction(v => Math.max((v || 0) - 1, 0));
-  }
+// HISTORIAL
+db.ref("history").limitToLast(50).on("value",snap=>{
+  historyDiv.innerHTML="";
+  snap.forEach(c=>{
+    const h=c.val();
+    historyDiv.innerHTML=
+      `📅 ${h.date} — ${h.name} ${h.emoji} (${h.points>0?"+":""}${h.points})<br>` +
+      historyDiv.innerHTML;
+  });
+});
+
+// CHANGE
+function change(name,type,delta){
+  const ref=db.ref("datos/"+name+"/"+type);
+  ref.transaction(v=>{
+    if(delta<0 && (!v||v===0)) return v;
+    return (v||0)+delta;
+  });
+
+  const now=new Date().toLocaleDateString();
+  db.ref("history").push({
+    name,
+    emoji:drinks[type].emoji,
+    points:delta*drinks[type].points,
+    date:now
+  });
+}
 </script>
 
 </body>
