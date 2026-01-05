@@ -1,588 +1,111 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Contador de Bebidas 2026</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Cubatas 2026</title>
 
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            padding: 20px;
-        }
+  <!-- Firebase COMPAT (IMPORTANTE) -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
 
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-
-        header {
-            text-align: center;
-            color: white;
-            margin-bottom: 40px;
-        }
-
-        h1 {
-            font-size: 2.5em;
-            margin-bottom: 10px;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
-        }
-
-        .subtitle {
-            font-size: 1.1em;
-            opacity: 0.9;
-            margin-bottom: 15px;
-        }
-
-        .status-badge {
-            display: inline-block;
-            padding: 8px 16px;
-            border-radius: 20px;
-            font-size: 0.9em;
-            margin-top: 10px;
-            font-weight: bold;
-        }
-
-        .status-online {
-            background: rgba(76, 175, 80, 0.3);
-            color: #4CAF50;
-        }
-
-        .status-offline {
-            background: rgba(244, 67, 54, 0.3);
-            color: #f44336;
-        }
-
-        .date-info {
-            font-size: 1em;
-            opacity: 0.85;
-            background: rgba(255,255,255,0.1);
-            padding: 10px 20px;
-            border-radius: 8px;
-            display: inline-block;
-            margin-bottom: 15px;
-        }
-
-        .party-counter {
-            background: rgba(255,255,255,0.2);
-            padding: 15px 25px;
-            border-radius: 10px;
-            margin-top: 15px;
-            font-size: 1.1em;
-            display: inline-block;
-        }
-
-        .party-counter strong {
-            color: #FFD700;
-        }
-
-        .main-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 20px;
-            margin-bottom: 40px;
-        }
-
-        .person-card {
-            background: white;
-            border-radius: 15px;
-            padding: 20px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
-        }
-
-        .person-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 15px 40px rgba(0,0,0,0.3);
-        }
-
-        .person-name {
-            font-size: 1.3em;
-            font-weight: bold;
-            color: #333;
-            margin-bottom: 15px;
-            text-align: center;
-        }
-
-        .drinks-section {
-            margin-bottom: 15px;
-        }
-
-        .drink-type {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 12px;
-            padding: 10px;
-            background: #f5f5f5;
-            border-radius: 8px;
-        }
-
-        .drink-label {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 1em;
-            font-weight: 500;
-        }
-
-        .drink-emoji {
-            font-size: 1.5em;
-        }
-
-        .drink-count {
-            font-size: 1.2em;
-            font-weight: bold;
-            color: #667eea;
-            min-width: 30px;
-            text-align: center;
-        }
-
-        .button-group {
-            display: flex;
-            gap: 8px;
-        }
-
-        button {
-            padding: 8px 12px;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: bold;
-            transition: all 0.2s ease;
-            font-size: 0.9em;
-        }
-
-        .btn-add {
-            background: #4CAF50;
-            color: white;
-        }
-
-        .btn-add:hover {
-            background: #45a049;
-            transform: scale(1.05);
-        }
-
-        .btn-subtract {
-            background: #f44336;
-            color: white;
-        }
-
-        .btn-subtract:hover {
-            background: #da190b;
-            transform: scale(1.05);
-        }
-
-        .points-display {
-            text-align: center;
-            margin-top: 15px;
-            padding: 12px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border-radius: 8px;
-            font-size: 1.1em;
-            font-weight: bold;
-        }
-
-        .stats-section {
-            background: white;
-            border-radius: 15px;
-            padding: 30px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-            margin-bottom: 30px;
-        }
-
-        .stats-title {
-            font-size: 1.5em;
-            font-weight: bold;
-            color: #333;
-            margin-bottom: 20px;
-            text-align: center;
-        }
-
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
-        }
-
-        .stat-card {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 20px;
-            border-radius: 10px;
-            text-align: center;
-        }
-
-        .stat-label {
-            font-size: 0.9em;
-            opacity: 0.9;
-            margin-bottom: 8px;
-        }
-
-        .stat-value {
-            font-size: 2em;
-            font-weight: bold;
-        }
-
-        .ranking-section {
-            background: white;
-            border-radius: 15px;
-            padding: 30px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-            margin-bottom: 30px;
-        }
-
-        .ranking-title {
-            font-size: 1.5em;
-            font-weight: bold;
-            color: #333;
-            margin-bottom: 20px;
-            text-align: center;
-        }
-
-        .ranking-item {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 15px;
-            border-bottom: 1px solid #eee;
-            transition: background 0.2s ease;
-        }
-
-        .ranking-item:hover {
-            background: #f9f9f9;
-        }
-
-        .ranking-item:last-child {
-            border-bottom: none;
-        }
-
-        .ranking-position {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            flex: 1;
-        }
-
-        .medal {
-            font-size: 1.8em;
-            min-width: 40px;
-            text-align: center;
-        }
-
-        .ranking-name {
-            font-weight: bold;
-            color: #333;
-            font-size: 1.1em;
-        }
-
-        .ranking-points {
-            font-size: 1.2em;
-            font-weight: bold;
-            color: #667eea;
-        }
-
-        .month-selector {
-            display: flex;
-            justify-content: center;
-            gap: 10px;
-            margin-bottom: 20px;
-            flex-wrap: wrap;
-        }
-
-        .month-btn {
-            padding: 8px 16px;
-            background: #f0f0f0;
-            border: 2px solid #ddd;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: bold;
-            transition: all 0.2s ease;
-            font-size: 0.85em;
-        }
-
-        .month-btn.active {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border-color: #667eea;
-        }
-
-        .month-btn:hover {
-            transform: scale(1.05);
-        }
-
-        .controls {
-            text-align: center;
-            margin-top: 30px;
-        }
-
-        .btn-reset {
-            padding: 12px 30px;
-            background: #ff9800;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 1em;
-            font-weight: bold;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-
-        .btn-reset:hover {
-            background: #e68900;
-            transform: scale(1.05);
-        }
-
-        .btn-export {
-            padding: 12px 30px;
-            background: #2196F3;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 1em;
-            font-weight: bold;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            margin-left: 10px;
-        }
-
-        .btn-export:hover {
-            background: #0b7dda;
-            transform: scale(1.05);
-        }
-
-        .date-input-section {
-            text-align: center;
-            margin-bottom: 30px;
-            background: white;
-            border-radius: 15px;
-            padding: 20px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-        }
-
-        .date-input-section label {
-            font-weight: bold;
-            margin-right: 10px;
-            color: #333;
-        }
-
-        .date-input-section input {
-            padding: 8px 12px;
-            border: 2px solid #667eea;
-            border-radius: 6px;
-            font-size: 1em;
-        }
-
-        .date-input-section button {
-            padding: 8px 16px;
-            background: #667eea;
-            color: white;
-            border: none;
-            border-radius: 6px;
-            margin-left: 10px;
-            cursor: pointer;
-            font-weight: bold;
-        }
-
-        .date-input-section button:hover {
-            background: #764ba2;
-        }
-
-        @media (max-width: 768px) {
-            h1 {
-                font-size: 1.8em;
-            }
-
-            .main-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .stats-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .month-selector {
-                justify-content: center;
-            }
-
-            .month-btn {
-                font-size: 0.75em;
-                padding: 6px 10px;
-            }
-        }
-    </style>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #111827;
+      color: white;
+      padding: 20px;
+    }
+    h1 { text-align: center; }
+    .card {
+      background: #1f2933;
+      padding: 15px;
+      border-radius: 10px;
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    button {
+      font-size: 20px;
+      padding: 5px 10px;
+      margin: 0 5px;
+      cursor: pointer;
+    }
+  </style>
 </head>
+
 <body>
-    <div class="container">
-        <header>
-            <h1>🍻 Contador de Bebidas 2026</h1>
-            <p class="subtitle">Registra y compite con tus colegas</p>
-            <div class="date-info" id="dateInfo">Cargando fecha...</div>
-            <div class="party-counter">
-                🎉 Fiestas registradas: <strong id="partyCount">0</strong>
-            </div>
-            <div class="status-badge status-offline" id="statusBadge">
-                ⚫ Conectando a Firebase...
-            </div>
-        </header>
 
-        <div class="date-input-section">
-            <label for="eventDate">📅 Registrar una fiesta:</label>
-            <input type="date" id="eventDate">
-            <button onclick="addParty()">Añadir Fiesta</button>
+<h1>🍹 Cubatas 2026</h1>
+
+<div id="app"></div>
+
+<script>
+  // 🔥 FIREBASE CONFIG (TUYA)
+  const firebaseConfig = {
+    apiKey: "AIzaSyC2O75FYQDljmMeu36yB94KbOmAZdgX4d4",
+    authDomain: "cubatas-2026.firebaseapp.com",
+    databaseURL: "https://cubatas-2026-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "cubatas-2026",
+    storageBucket: "cubatas-2026.firebasestorage.app",
+    messagingSenderId: "754889583450",
+    appId: "1:754889583450:web:aa584f7a906290beffe163"
+  };
+
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
+
+  const people = [
+    "Jonmi","Marce","Lucho","Diego","Markitos",
+    "Boveda","Bipo","Ferrer","Wichi","Rabu","Llorden"
+  ];
+
+  const app = document.getElementById("app");
+
+  // INICIALIZAR EN FIREBASE SI NO EXISTE
+  people.forEach(name => {
+    db.ref("cubatas/" + name).once("value", snap => {
+      if (!snap.exists()) {
+        db.ref("cubatas/" + name).set(0);
+      }
+    });
+  });
+
+  // ESCUCHAR CAMBIOS EN TIEMPO REAL
+  db.ref("cubatas").on("value", snap => {
+    const data = snap.val() || {};
+    app.innerHTML = "";
+
+    people.forEach(name => {
+      const count = data[name] || 0;
+
+      const div = document.createElement("div");
+      div.className = "card";
+      div.innerHTML = `
+        <strong>${name}</strong>
+        <div>
+          <button onclick="add('${name}')">➕</button>
+          <span>${count}</span>
+          <button onclick="sub('${name}')">➖</button>
         </div>
+      `;
+      app.appendChild(div);
+    });
+  });
 
-        <div class="main-grid" id="mainGrid"></div>
+  // FUNCIONES
+  function add(name) {
+    db.ref("cubatas/" + name).transaction(v => (v || 0) + 1);
+  }
 
-        <div class="stats-section">
-            <div class="stats-title">📊 Estadísticas Generales (Este mes)</div>
-            <div class="stats-grid">
-                <div class="stat-card">
-                    <div class="stat-label">Total Cubatas</div>
-                    <div class="stat-value" id="totalCubatas">0</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-label">Total Chupitos</div>
-                    <div class="stat-value" id="totalChupitos">0</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-label">Total Cervezas</div>
-                    <div class="stat-value" id="totalCervezas">0</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-label">Puntos Totales</div>
-                    <div class="stat-value" id="totalPuntos">0</div>
-                </div>
-            </div>
-        </div>
+  function sub(name) {
+    db.ref("cubatas/" + name).transaction(v => Math.max((v || 0) - 1, 0));
+  }
+</script>
 
-        <div class="ranking-section">
-            <div class="ranking-title">🏆 Ranking General (Todo el año)</div>
-            <div id="ranking"></div>
-        </div>
-
-        <div class="ranking-section">
-            <div class="ranking-title">📅 Ranking Mensual - Selecciona un mes</div>
-            <div class="month-selector" id="monthSelector"></div>
-            <div id="monthlyRanking"></div>
-        </div>
-
-        <div class="controls">
-            <button class="btn-reset" onclick="resetAll()">🔄 Reiniciar Todo</button>
-            <button class="btn-export" onclick="exportData()">💾 Descargar Datos</button>
-        </div>
-    </div>
-
-    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-database.js"></script>
-
-    <script>
-        const firebaseConfig = {
-            apiKey: "AIzaSyC2O75FYQDljmMeu36yB94KbOmAZdgX4d4",
-            authDomain: "cubatas-2026.firebaseapp.com",
-            databaseURL: "https://cubatas-2026-default-rtdb.europe-west1.firebasedatabase.app",
-            projectId: "cubatas-2026",
-            storageBucket: "cubatas-2026.firebasestorage.app",
-            messagingSenderId: "754889583450",
-            appId: "1:754889583450:web:aa584f7a906290beffe163",
-            measurementId: "G-WZGVRDT8V1"
-        };
-
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.database();
-
-        const personas = ['Jonmi', 'Marce', 'Lucho', 'Diego', 'Markitos', 'Boveda', 'Bipo', 'Ferrer', 'Wichi', 'Rabu', 'Llorden'];
-        const drinks = {
-            cubata: { emoji: '🍹', points: 5, label: 'Cubata' },
-            chupito: { emoji: '🥃', points: 3, label: 'Chupito' },
-            cerveza: { emoji: '🍺', points: 1, label: 'Cerveza' }
-        };
-        const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
-        const diasSemana = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
-
-        let data = {};
-        let parties = [];
-        let selectedMonth = new Date().getMonth();
-        let isConnected = false;
-
-        db.ref('.info/connected').on('value', (snap) => {
-            isConnected = snap.val() === true;
-            updateStatusBadge();
-            if (isConnected) {
-                loadDataFromFirebase();
-            }
-        });
-
-        function updateStatusBadge() {
-            const badge = document.getElementById('statusBadge');
-            if (isConnected) {
-                badge.textContent = '🟢 Sincronizado en tiempo real';
-                badge.className = 'status-badge status-online';
-            } else {
-                badge.textContent = '🔴 Sin conexión';
-                badge.className = 'status-badge status-offline';
-            }
-        }
-
-        function initData() {
-            personas.forEach(persona => {
-                data[persona] = {};
-                for (let month = 0; month < 12; month++) {
-                    data[persona][month] = { cubata: 0, chupito: 0, cerveza: 0 };
-                }
-            });
-        }
-
-        function loadDataFromFirebase() {
-            db.ref('contador2026').on('value', (snapshot) => {
-                if (snapshot.exists()) {
-                    const firebaseData = snapshot.val();
-                    if (firebaseData.datos) {
-                        data = firebaseData.datos;
-                    }
-                    if (firebaseData.parties) {
-                        parties = firebaseData.parties;
-                    }
-                    updateUI();
-                }
-            });
-        }
-
-        function saveToFirebase() {
-            if (isConnected) {
-                db.ref('contador2026').set({
-                    datos: data,
-                    parties: parties,
-                    lastUpdate: new Date().toISOString()
-                });
-            }
-        }
-
-        function addDrink(persona, type) {
-            const month = new Date().getMonth();
-            if (!data[persona][month]) {
-                data[persona][month] = { cubata: 0, chupito: 0, cerveza: 0 };
-            }
-            data[persona][month][type]++;
-            saveToFirebase();
-        }
-
-        function subtractDrink(persona, type) {
-            const month = new Date().getMonth();
-            if (!data[persona][month]) {
-                data[persona][month] = { cubata: 0, chupito: 0, cerveza: 0 };
-            }
-            if (data[persona][month][type] > 0) {
-              
-(Content truncated due to size limit. Use page ranges or line ranges to read remaining content)
+</body>
+</html>
 
 
 
