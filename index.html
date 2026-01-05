@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Cubatas 2026</title>
 
-  <!-- Firebase COMPAT (IMPORTANTE) -->
+  <!-- Firebase COMPAT -->
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
 
@@ -16,33 +16,50 @@
       color: white;
       padding: 20px;
     }
-    h1 { text-align: center; }
+    h1 {
+      text-align: center;
+      margin-bottom: 20px;
+    }
     .card {
       background: #1f2933;
       padding: 15px;
       border-radius: 10px;
+      margin-bottom: 12px;
+    }
+    .name {
+      font-weight: bold;
       margin-bottom: 10px;
+      text-align: center;
+    }
+    .row {
       display: flex;
       justify-content: space-between;
       align-items: center;
+      margin: 6px 0;
     }
     button {
-      font-size: 20px;
-      padding: 5px 10px;
-      margin: 0 5px;
+      font-size: 18px;
+      padding: 4px 10px;
+      margin: 0 4px;
       cursor: pointer;
+    }
+    .points {
+      text-align: center;
+      margin-top: 8px;
+      font-weight: bold;
+      color: #38bdf8;
     }
   </style>
 </head>
 
 <body>
 
-<h1>🍹 Cubatas 2026</h1>
+<h1>🍻 Cubatas 2026</h1>
 
 <div id="app"></div>
 
 <script>
-  // 🔥 FIREBASE CONFIG (TUYA)
+  // 🔥 FIREBASE CONFIG
   const firebaseConfig = {
     apiKey: "AIzaSyC2O75FYQDljmMeu36yB94KbOmAZdgX4d4",
     authDomain: "cubatas-2026.firebaseapp.com",
@@ -61,52 +78,78 @@
     "Boveda","Bipo","Ferrer","Wichi","Rabu","Llorden"
   ];
 
+  const drinks = {
+    cubata: { emoji: "🍹", points: 5 },
+    chupito: { emoji: "🥃", points: 3 },
+    cerveza: { emoji: "🍺", points: 1 }
+  };
+
   const app = document.getElementById("app");
 
-  // INICIALIZAR EN FIREBASE SI NO EXISTE
+  // 🔁 Inicializar estructura si no existe
   people.forEach(name => {
-    db.ref("cubatas/" + name).once("value", snap => {
+    db.ref("datos/" + name).once("value", snap => {
       if (!snap.exists()) {
-        db.ref("cubatas/" + name).set(0);
+        db.ref("datos/" + name).set({
+          cubata: 0,
+          chupito: 0,
+          cerveza: 0
+        });
       }
     });
   });
 
-  // ESCUCHAR CAMBIOS EN TIEMPO REAL
-  db.ref("cubatas").on("value", snap => {
+  // 🔁 Escuchar cambios en tiempo real
+  db.ref("datos").on("value", snap => {
     const data = snap.val() || {};
     app.innerHTML = "";
 
     people.forEach(name => {
-      const count = data[name] || 0;
+      const d = data[name] || { cubata:0, chupito:0, cerveza:0 };
 
-      const div = document.createElement("div");
-      div.className = "card";
-      div.innerHTML = `
-        <strong>${name}</strong>
-        <div>
-          <button onclick="add('${name}')">➕</button>
-          <span>${count}</span>
-          <button onclick="sub('${name}')">➖</button>
-        </div>
+      const puntos =
+        d.cubata * 5 +
+        d.chupito * 3 +
+        d.cerveza * 1;
+
+      const card = document.createElement("div");
+      card.className = "card";
+
+      card.innerHTML = `
+        <div class="name">${name}</div>
+
+        ${Object.keys(drinks).map(type => `
+          <div class="row">
+            <span>${drinks[type].emoji}</span>
+            <div>
+              <button onclick="add('${name}','${type}')">➕</button>
+              <span>${d[type]}</span>
+              <button onclick="sub('${name}','${type}')">➖</button>
+            </div>
+          </div>
+        `).join("")}
+
+        <div class="points">${puntos} puntos</div>
       `;
-      app.appendChild(div);
+
+      app.appendChild(card);
     });
   });
 
-  // FUNCIONES
-  function add(name) {
-    db.ref("cubatas/" + name).transaction(v => (v || 0) + 1);
+  // ➕ Sumar
+  function add(name, type) {
+    db.ref("datos/" + name + "/" + type)
+      .transaction(v => (v || 0) + 1);
   }
 
-  function sub(name) {
-    db.ref("cubatas/" + name).transaction(v => Math.max((v || 0) - 1, 0));
+  // ➖ Restar
+  function sub(name, type) {
+    db.ref("datos/" + name + "/" + type)
+      .transaction(v => Math.max((v || 0) - 1, 0));
   }
 </script>
 
 </body>
 </html>
-
-
 
 
